@@ -152,3 +152,6 @@ def run_training(
     # --- Teardown ---
     del trainer, model
     torch.cuda.empty_cache()
+    
+if __name__ == "__main__":
+    run_training()    
