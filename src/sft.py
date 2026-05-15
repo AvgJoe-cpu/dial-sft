@@ -59,6 +59,7 @@ def run_training(
         user_template=temp_user,
         assistant_template=temp_assistant,
         mode="training",        
+        inference_type="separate"   # ← add this
         )
     
     del dd
