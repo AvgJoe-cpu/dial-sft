@@ -31,7 +31,7 @@ echo
 # Execute the training function, now passing the SFT config explicitly
 python -c "
 from transformers import SFTConfig
-from sft import run_training
+from src.sft import run_training
 
 # Create the SFT config with defaults (matching your original function)
 training_args = SFTConfig(
