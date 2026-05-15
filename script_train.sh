@@ -1,24 +1,33 @@
 #!/bin/bash
 
-# Optional: Clone and cd if needed (same as old script)
 if [ ! -d "dial-sft" ]; then
   git clone https://github.com/AvgJoe-cpu/dial-sft.git
 fi
 cd dial-sft
 
-# Prompt for user inputs with defaults (same as old script)
-read -p "Model name (default: facebook/opt-350m): " model_name
-model_name=${model_name:-"facebook/opt-350m"}
+echo
+echo "  configure run"
+echo "  ─────────────"
 
-read -p "Dataset name (default: roskoN/dailydialog): " dataset_name
-dataset_name=${dataset_name:-"roskoN/dailydialog"}
+ask() {
+  local prompt="$1" default="$2" var="$3"
+  read -p "  $prompt (default: $default): " input
+  printf -v "$var" '%s' "${input:-$default}"
+}
 
-read -p "Split (default: train): " split
-split=${split:-"train"}
+ask "model name"  "facebook/opt-350m"    model_name
+ask "dataset"     "roskoN/dailydialog"   dataset_name
+ask "split"       "train"                split
+ask "output dir"  "./sft_output"         output_dir
 
-read -p "Output dir (default: ./sft_output): " output_dir
-output_dir=${output_dir:-"./sft_output"}
-
+echo
+echo "  ─────────────"
+echo "  model    →  $model_name"
+echo "  dataset  →  $dataset_name"
+echo "  split    →  $split"
+echo "  output   →  $output_dir"
+echo "  ─────────────"
+echo
 # Execute the training function, now passing the SFT config explicitly
 python -c "
 from transformers import SFTConfig
