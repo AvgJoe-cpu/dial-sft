@@ -1,7 +1,7 @@
 from typing import Any, Literal
 from jinja2 import Template
 
-def pre_split(example, in_key="utterance"):
+def pre_split(example, in_key="utterances"):
     first_pair = example[in_key][:1]
     second_pair = example[in_key][1:]
     return {"first_pair": first_pair, "second_pair": second_pair}
