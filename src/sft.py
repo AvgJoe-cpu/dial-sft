@@ -57,7 +57,8 @@ def run_training(
         dd[split],
         tokenizer=tokenizer,
         user_template=temp_user,
-        assistant_template=temp_assistant
+        assistant_template=temp_assistant,
+        mode="training",        
         )
     
     del dd
