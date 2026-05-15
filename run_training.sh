@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Install whiptail if needed (Colab)
+apt-get install -q -y whiptail 2>/dev/null
+
 # Clone the repository if not already present
 if [ ! -d "dial-sft" ]; then
   git clone https://github.com/AvgJoe-cpu/dial-sft.git
@@ -7,17 +10,10 @@ fi
 
 cd dial-sft
 
-read -p "Model name (default: facebook/opt-350m): " model_name
-model_name=${model_name:-"facebook/opt-350m"}
-
-read -p "Dataset name (default: roskoN/dailydialog): " dataset_name
-dataset_name=${dataset_name:-"roskoN/dailydialog"}
-
-read -p "Split (default: train): " split
-split=${split:-"train"}
-
-read -p "Output dir (default: ./sft_output): " output_dir
-output_dir=${output_dir:-"./sft_output"}
+model_name=$(whiptail --inputbox "Model name:" 8 60 "facebook/opt-350m" --title "Training Config" 3>&1 1>&2 2>&3)
+dataset_name=$(whiptail --inputbox "Dataset name:" 8 60 "roskoN/dailydialog" --title "Training Config" 3>&1 1>&2 2>&3)
+split=$(whiptail --inputbox "Split:" 8 60 "train" --title "Training Config" 3>&1 1>&2 2>&3)
+output_dir=$(whiptail --inputbox "Output dir:" 8 60 "./sft_output" --title "Training Config" 3>&1 1>&2 2>&3)
 
 # Execute the training function with the provided arguments
 python -c "
