@@ -113,5 +113,8 @@ def run_inferene(
     )    
     ds.to_parquet(output_file)
 
+    del model, tokenizer, gen_config, ds, dd
+    torch.cuda.empty_cache()
+    
 if __name__ == "__main__":
     run_inferene()
