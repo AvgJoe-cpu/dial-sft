@@ -30,7 +30,7 @@ echo "  ─────────────"
 echo
 # Execute the training function, now passing the SFT config explicitly
 python -c "
-from transformers import SFTConfig
+from trl import SFTConfig
 from src.sft import run_training
 
 # Create the SFT config with defaults (matching your original function)
