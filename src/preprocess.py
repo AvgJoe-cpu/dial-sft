@@ -94,7 +94,7 @@ def pre_process(
         
     return (
         ds
-        .map(pre_split, batched=True)
+        .map(pre_split, batched=False)
         .map(
             pre_format,
             batched=False,
