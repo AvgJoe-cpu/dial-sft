@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ ! -d "dial-sft" ]; then
+  git clone https://github.com/AvgJoe-cpu/dial-sft.git
+fi
+
+cd dial-sft
 cd dial-sft
 
 read -p "Checkpoint path (default: Qwen/Qwen2.5-3B-Instruct): " checkpoint_path
