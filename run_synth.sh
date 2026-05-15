@@ -7,7 +7,7 @@ fi
 cd dial-sft
 
 read -p "Checkpoint path (default: Qwen/Qwen2.5-3B-Instruct): " checkpoint_path
-checkpoint_path=${checkpoint_path:-"Qwen/Qwen2.5-3B-Instruct
+checkpoint_path=${checkpoint_path:-"Qwen/Qwen2.5-3B-Instruct"}
 
 read -p "Dataset name (default: roskoN/dailydialog): " dataset_name
 dataset_name=${dataset_name:-"roskoN/dailydialog"}
