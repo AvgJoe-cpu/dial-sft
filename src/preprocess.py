@@ -75,7 +75,7 @@ def pre_process(
         assistant_template: str | None = None,
         joint_template: str | None = None,
         tokenizer: Any | None = None,
-        mode: str = "inference",
+        mode: str = "training",
         inference_type: str = "joint",
         out_key: str = "text",
         in_keys: str | tuple[str, str] = ("first_pair", "second_pair")
