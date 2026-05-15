@@ -5,7 +5,6 @@ if [ ! -d "dial-sft" ]; then
 fi
 
 cd dial-sft
-cd dial-sft
 
 read -p "Checkpoint path (default: Qwen/Qwen2.5-3B-Instruct): " checkpoint_path
 checkpoint_path=${checkpoint_path:-"Qwen/Qwen2.5-3B-Instruct
