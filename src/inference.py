@@ -1,3 +1,4 @@
+from src.postprocess import parse_content, parse_generated_response
 from.preprocess import pre_process
 
 import torch
@@ -25,41 +26,68 @@ def generate_ar(example, tokenizer=None, model=None, gen_config=None, in_key=Non
     return example
 
 
-def run_inferene(
+def run_inference(
         checkpoint_path="checkpoint-500",
         dataset_name="roskoN/dailydialog",
         split="train",
         inference_batch_size=128,
         output_file="inference_output.parquet",
         two_inputs=True,
-        config: GenerationConfig | None = None
+        config: GenerationConfig | None = None,
+        post_process: bool = False
 ):
-    # --- Templates ---    
-    temp_user = """
-    Continue the following dialogue:
-    {%- for utt in utterances %}
-    {{ utt }}
-    {%- if not loop.last %}\n{%- endif %}
-    {%- endfor %}
-    """
 
     dd = load_dataset(dataset_name)
     tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
 
     if two_inputs:
-        ds = pre_process(
-            dd[split],
-            tokenizer=tokenizer,
-            user_template=temp_user,
-            inference_type="separate",
-            mode="inference",
-        )
-    else: 
+        temp_user = """
+        Task: Analyze the two conversation snippets provided below—an initial snippet and its continuation.
+        Given a conversation snippet:
+        {%- for utt in initial_utterances %}
+        {{ utt }}
+        {%- if not loop.last %}\n{%- endif %}
+        {%- endfor %}
+        And its continuation:
+        {%- for utt in continuation_utterances %}
+        {{ utt }}
+        {%- if not loop.last %}\n{%- endif %}
+        {%- endfor %}
+        First, briefly describe the conversation snippet and its continuation.
+        Then, explain why the conversation continues as it does, based only on the provided snippet and continuation.
+        Answer briefly, in steps.
+        Keep the explanation minimal and focus each step on one key reason.
+        Output your analysis as a valid JSON object with exactly the following structure:
+        ```json
+        {
+        "description": "Brief description of the snippet and continuation",
+        "explanation": "Brief explanation in steps why the conversation continues",
+        "final_answer": "Concise summary of key reasons"
+        }
+        ```
+        """        
         ds = pre_process(
             dd[split],
             tokenizer=tokenizer,
             user_template=temp_user,
             inference_type="joint",
+            mode="inference",
+        )
+    else: 
+         # --- Templates ---    
+        temp_user = """
+        Continue the following dialogue:
+        {%- for utt in utterances %}
+        {{ utt }}
+        {%- if not loop.last %}\n{%- endif %}
+        {%- endfor %}
+        """        
+
+        ds = pre_process(
+            dd[split],
+            tokenizer=tokenizer,
+            user_template=temp_user,
+            inference_type="separate",
             mode="inference",
         )
 
@@ -91,10 +119,19 @@ def run_inferene(
             "out_key": "generated_response"
         }
     )    
+    if post_process:
+        ds = ds.map(
+            parse_generated_response,
+            batched=False,
+        )
+        ds = ds.map(
+            parse_content,
+            batched=False,
+        )
 
     ds.to_parquet(output_file)
     del model, tokenizer, config, ds, dd
     torch.cuda.empty_cache()
 
 if __name__ == "__main__":
-    run_inferene()    
+    run_inference()    

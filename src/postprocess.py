@@ -25,7 +25,7 @@ def parse_generated_response(example):
         return None
 
 
-def parse_analysis_content(example):
+def parse_content(example):
     parsed_data = example.get("parsed")
     if parsed_data is None:
         return None
@@ -45,3 +45,6 @@ def parse_analysis_content(example):
         "explanation_steps": explanation_steps,
         "final_answer": final_answer
     }
+
+if __name__ == "__main__":
+    print("This module provides functions to parse generated responses and extract structured content from them. It is intended to be used as part of a post-processing pipeline after generating responses from a language model.")
