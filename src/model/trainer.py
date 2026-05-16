@@ -3,6 +3,22 @@ import torch
 import torch.nn.functional as F
 import transformers
 
+#######################################################################
+class NLLMetric(torchmetrics.aggregation.MeanMetric):
+    """Token-level mean NLL. Weights should be the mask of predicted (e.g. masked) tokens."""
+    def __init__(self, **kwargs):
+        # Ensure cross-rank aggregation when compute() is called
+        kwargs.setdefault("sync_on_compute", True)
+        super().__init__(**kwargs)
+
+
+class PPLMetric(NLLMetric):
+    """Token-level perplexity = exp(mean NLL)."""
+
+    def compute(self) -> torch.Tensor:
+        mean_nll = super().compute()
+        return torch.exp(mean_nll)    
+
 # from dataclasses import dataclass                         # removed - no dataclass needed
 # from dllm.core.schedulers import BaseAlphaScheduler, LinearAlphaScheduler  # removed - inlined below
 # from dllm.utils.configs import TrainingArguments         # removed - use transformers.TrainingArguments directly
@@ -17,19 +33,6 @@ import transformers
 #     loss_norm_type: str = "token"                        # removed - hardcoded to token
 #     right_shift_logits: bool = False                     # removed - not needed post-A2D
 # =============================================================================
-
-class LinearAlphaScheduler:
-    def alpha(self, t):                return 1.0 - t
-    def alpha_derivative(self, t):     return -torch.ones_like(t)
-    def weight(self, t):               return -self.alpha_derivative(t) / (1 - self.alpha(t) + 1e-6)
-    def reverse_mask_prob(self, s, t): return (1 - self.alpha(s)) / (1 - self.alpha(t) + 1e-6)
-
-class CosineAlphaScheduler:
-    def alpha(self, t):                return 1 - torch.cos((math.pi / 2) * (1 - t))
-    def alpha_derivative(self, t):     return -(math.pi / 2) * torch.sin((math.pi / 2) * (1 - t))
-    def weight(self, t):               return -self.alpha_derivative(t) / (1 - self.alpha(t) + 1e-6)
-    def reverse_mask_prob(self, s, t): return (1 - self.alpha(s)) / (1 - self.alpha(t) + 1e-6)
-
 
 class MDLMTrainer(transformers.Trainer):
 
