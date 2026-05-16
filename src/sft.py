@@ -59,11 +59,11 @@ def run_training(
         user_template=temp_user,
         assistant_template=temp_assistant,
         mode="training",        
-        inference_type="separate"   # ← add this
+        inference_type="separate"   
         )
     
     del dd
-    train_ds = train_ds.select(range(1000))  
+    #train_ds = train_ds.select(range(1000))  
 
     # --- Model (loaded after preprocessing to avoid idle VRAM) ---
     model = AutoModelForCausalLM.from_pretrained(
