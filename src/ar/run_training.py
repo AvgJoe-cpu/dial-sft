@@ -1,4 +1,4 @@
-from src.preprocess import pre_process as preprocess_function
+from src.data_preprocess import pre_process as preprocess_function
 
 # SFT.py (retrived from: https://huggingface.co/learn/llm-course/chapter11/3)
 from trl import SFTConfig, SFTTrainer

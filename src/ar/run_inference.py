@@ -1,5 +1,5 @@
-from src.postprocess import parse_content, parse_generated_response
-from.preprocess import pre_process
+from src.data_posprocess import parse_content, parse_generated_response
+from..data_preprocess import pre_process
 
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
