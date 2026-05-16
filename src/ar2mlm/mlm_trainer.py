@@ -3,39 +3,8 @@ import torch
 import torch.nn.functional as F
 import transformers
 
-#######################################################################
-class NLLMetric(torchmetrics.aggregation.MeanMetric):
-    """Token-level mean NLL. Weights should be the mask of predicted (e.g. masked) tokens."""
-    def __init__(self, **kwargs):
-        # Ensure cross-rank aggregation when compute() is called
-        kwargs.setdefault("sync_on_compute", True)
-        super().__init__(**kwargs)
-
-
-class PPLMetric(NLLMetric):
-    """Token-level perplexity = exp(mean NLL)."""
-
-    def compute(self) -> torch.Tensor:
-        mean_nll = super().compute()
-        return torch.exp(mean_nll)    
-
-# from dataclasses import dataclass                         # removed - no dataclass needed
-# from dllm.core.schedulers import BaseAlphaScheduler, LinearAlphaScheduler  # removed - inlined below
-# from dllm.utils.configs import TrainingArguments         # removed - use transformers.TrainingArguments directly
-# from dllm.utils.data import prepend_bos                  # removed - right_shift_logits dropped
-# from .utils import NLLMetric, PPLMetric, OnEvaluateMetricsCallback  # removed - meter dropped
-
-# =============================================================================
-# @dataclass                                               # removed
-# class MDLMConfig(TrainingArguments):                     # removed
-#     time_epsilon: float = 1e-3                           # removed - plain kwarg instead
-#     loss_weight_type: str = "scheduler"                  # removed - hardcoded to scheduler
-#     loss_norm_type: str = "token"                        # removed - hardcoded to token
-#     right_shift_logits: bool = False                     # removed - not needed post-A2D
-# =============================================================================
 
 class MDLMTrainer(transformers.Trainer):
-
     def __init__(
         self,
         # args: MDLMConfig,                                # removed - plain TrainingArguments passed directly

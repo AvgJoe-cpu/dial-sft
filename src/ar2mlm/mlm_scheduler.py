@@ -30,5 +30,4 @@ class CosineAlphaScheduler:
       return (1 - self.alpha(s)) / (1 - self.alpha(t) + 1e-6)
 
 
-if __name__ == "__main__":
     
