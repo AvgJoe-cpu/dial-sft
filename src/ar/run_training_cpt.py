@@ -1,10 +1,10 @@
 from transformers import Trainer, TrainingArguments, DataCollatorForLanguageModeling
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from datasets import load_dataset
+from datasets import load_dataset, DatasetDict
 import torch
 
 
-def run_training(model_path= "EleutherAI/pythia-70m", rev="step512"):
+def run_training_cpt(model_path= "EleutherAI/pythia-70m", rev="step512"):
 
     model = AutoModelForCausalLM.from_pretrained(
         pretrained_model_name_or_path=model_path,
@@ -20,13 +20,16 @@ def run_training(model_path= "EleutherAI/pythia-70m", rev="step512"):
     def tokenize_function(examples):
         return tokenizer(examples["text"], truncation=True,max_length=1024)
     
-    dd = load_dataset("winglian/tiny-shakespeare")
-    ds_train = dd["train"]
-    ds_eval  = dd["test"]
+    # accepts dataset DICT from disk
+    dd = DatasetDict.load_from_disk("/content/dummy2.arrow")
+    ds_train = dd['train']
+    ds_eval  = dd['eval']
     del dd
 
-    ds_train = ds_train.map(tokenize_function, batched=True, remove_columns=["text"])
-    ds_eval  = ds_eval.map(tokenize_function, batched=True,  remove_columns=["text"])
+    #ds_train = ds_train.map(tokenize_function, batched=True, remove_columns=["text"])
+    #ds_eval  = ds_eval.map(tokenize_function, batched=True,  remove_columns=["text"])
+    ds_train = ds_train.map(tokenize_function, batched=True)
+    ds_eval  = ds_eval.map(tokenize_function, batched=True)
 
     # Standard config
     training_args   = TrainingArguments(
@@ -97,4 +100,4 @@ def run_training(model_path= "EleutherAI/pythia-70m", rev="step512"):
     torch.cuda.empty_cache()
 
 
-run_training()
+run_training_cpt()
