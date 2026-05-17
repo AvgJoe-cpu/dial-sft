@@ -6,6 +6,7 @@ def pre_split(example, in_key="utterances"):
     second_pair = example[in_key][1:]
     return {"first_pair": first_pair, "second_pair": second_pair}
 
+
 def pre_format(
     example,
     user_template: str | None = None,
