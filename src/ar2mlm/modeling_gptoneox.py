@@ -131,8 +131,8 @@ transformers.AutoModelForMaskedLM.register(A2DGPTNeoXConfig, A2DGPTNeoXForCausal
 # ---------------------------------------------------------------------------
 def convert(model_name_or_path: str, output_dir: str, random_init: bool = False):
     """Convert a stock GPT-NeoX checkpoint to A2DGPTNeoX format."""
-    src_model     = transformers.AutoModelForCausalLM.from_pretrained(model_name_or_path, torch_dtype=torch.bfloat16)
-    src_tokenizer = transformers.AutoTokenizer.from_pretrained(model_name_or_path)
+    src_model     = transformers.AutoModelForCausalLM.from_pretrained(model_name_or_path, revision="step512",torch_dtype=torch.bfloat16)
+    src_tokenizer = transformers.AutoTokenizer.from_pretrained(model_name_or_path , revision="step512")
 
     cfg_dict = src_model.config.to_dict()
     for k in ("model_type", "auto_map", "architectures"):

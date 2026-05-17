@@ -1,4 +1,6 @@
-from datasets import load_dataset
+from typing import Optional
+
+from datasets import load_dataset, DatasetDict
 from transformers import AutoTokenizer
 import pyarrow as pa
 import pyarrow.ipc as ipc
@@ -75,4 +77,16 @@ def sample_clm_dataset(
     print(f"Eval:  {current_eval_tokens:,} tokens")
 
 
+def post_process(train_path: str, eval_path: str, save_path: Optional[str] = None) -> DatasetDict:
+    ds_train = load_dataset("arrow", data_files=train_path)["train"]
+    ds_eval  = load_dataset("arrow", data_files=eval_path)["train"]
+
+    dataset_dict = DatasetDict({"train": ds_train, "eval" : ds_eval})  
+    if save_path:
+        dataset_dict.save_to_disk(save_path)
+        print(f"DatasetDict saved to {save_path}")
+    
+    return dataset_dict
+
 # sample_clm_dataset()
+# post_process("fineweb-edu-train-500M.arrow", "fineweb-edu-eval-100M.arrow", save_path="fineweb-edu-sampled")
