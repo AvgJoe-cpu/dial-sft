@@ -153,6 +153,6 @@ def convert(model_name_or_path: str, output_dir: str, random_init: bool = False)
 
 if __name__ == "__main__":
     convert(
-        model_name_or_path=sys.argv[1] if len(sys.argv) > 1 else "EleutherAI/pythia-140m",
-        output_dir=sys.argv[2]         if len(sys.argv) > 2 else "models-tmp/a2d-gpt-neox-140m",
+        model_name_or_path=sys.argv[1] if len(sys.argv) > 1 else "EleutherAI/pythia-160m",
+        output_dir=sys.argv[2]         if len(sys.argv) > 2 else "models-tmp/a2d-gpt-neox-160m",
     )
