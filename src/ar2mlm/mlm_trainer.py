@@ -212,20 +212,20 @@ if __name__ == "__main__":
         return_tensors="pt",
     )
 
-    # Config
+    import tempfile
     args = MDLMConfig(
-        output_dir="./mdlm_run",
+        output_dir=tempfile.gettempdir(),  # Use system temp directory
         num_train_epochs=3,
         per_device_train_batch_size=8,
         per_device_eval_batch_size=8,
-        gradient_accumulation_steps=4,   # test the substep fix
+        gradient_accumulation_steps=4,
         learning_rate=1e-4,
         logging_steps=10,
         eval_strategy="steps",
         eval_steps=50,
-        save_strategy="no",              # Don't save checkpoints
+        save_strategy="no",
         batch_eval_metrics=True,
-        report_to="none",       # or "wandb", "tensorboard"
+        report_to="none",
     )
 
     # Metrics & trainer
