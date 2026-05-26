@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dial-sft"
+version = "0.1.0"
+description = "Dialog SFT with MLM training"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "AvgJoe-cpu"},
+]
+dependencies = [
+    "transformers",
+    "datasets==3.4.0",
+    "trl",
+    "jinja2",
+    "torchmetrics",
+    "torch",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "isort",
+    "flake8",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
