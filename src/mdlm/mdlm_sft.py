@@ -1,5 +1,5 @@
-from src.ar2mlm.mdlm_scheduler import CosineAlphaScheduler
-from src.ar2mlm.mdlm_trainer import MDLMTrainer
+from src.mdlm.mdlm_scheduler import CosineAlphaScheduler
+from src.mdlm.mdlm_trainer import MDLMTrainer
 
 from transformers import TrainingArguments, AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq
 import torch 

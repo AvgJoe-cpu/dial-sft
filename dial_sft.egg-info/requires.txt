@@ -1,0 +1,12 @@
+transformers
+datasets==3.4.0
+trl
+jinja2
+torchmetrics
+torch
+
+[dev]
+pytest
+black
+isort
+flake8

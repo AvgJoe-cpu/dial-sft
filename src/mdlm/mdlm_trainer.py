@@ -2,7 +2,7 @@
 # REWRITE OF THE ORIGINAL TRAINER FOUND HERE
 # NOW MORE COMPATIBLE WITH THE TF TRAINER INTERFACE
 
-from src.ar2mlm.mdlm_scheduler import LinearAlphaScheduler, CosineAlphaScheduler, BaseAlphaScheduler
+from src.mdlm.mdlm_scheduler import LinearAlphaScheduler, CosineAlphaScheduler, BaseAlphaScheduler
 
 import weakref, math, numpy as np
 from dataclasses import dataclass
