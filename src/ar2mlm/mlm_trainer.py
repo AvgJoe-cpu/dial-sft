@@ -223,8 +223,6 @@ if __name__ == "__main__":
         logging_steps=10,
         eval_strategy="steps",
         eval_steps=50,
-        save_strategy="steps",
-        save_steps=100,
         batch_eval_metrics=True,
         report_to="none",       # or "wandb", "tensorboard"
     )
