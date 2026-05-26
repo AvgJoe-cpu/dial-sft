@@ -1,3 +1,22 @@
+# THIS FILE IS FOR COMPLETENESS ONLY AS THE MODEL IS LOADED DIRECTLY FROM THE HUB AND NEVER INSTANTIATED FROM THE CODE  
+# THIS FILE IS ALSO LOCATED HERE: https://huggingface.co/buckets/avgJo3/mdlm-owt-bucket
+
+#------------------------------------------------------------------------------------------------------------------------
+#from transformers import AutoModelForCausalLM, AutoTokenizer
+#model_name = "avgJo3/a2d-gpt-neox-160M"  # or 70m / 160m variant
+#revision = "main"  # or specific checkpoint tag if uploaded separately
+#model = AutoModelForCausalLM.from_pretrained(
+#    model_name, 
+#    revision=revision, 
+#    trust_remote_code=True
+#)
+#tokenizer = AutoTokenizer.from_pretrained(
+#    model_name, 
+#    revision=revision, 
+#    trust_remote_code=True
+#)
+#------------------------------------------------------------------------------------------------------------------------
+
 from typing import Optional
 import sys
 
