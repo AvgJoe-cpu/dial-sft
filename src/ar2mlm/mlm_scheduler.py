@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import math
 import torch
 
 import dataclasses
 import math
 from typing import Any, ClassVar, Union
-from __future__ import annotations
 
 ### THE ORIGINAL SAMPLING CODE 
 
