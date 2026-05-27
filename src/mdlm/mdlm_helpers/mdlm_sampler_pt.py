@@ -1,7 +1,7 @@
 # THIS SAMPLER IS AN ADAPTATION FROM: https://github.com/kuleshov-group/mdlm
 # SPECIFICALLY: (https://github.com/kuleshov-group/mdlm/blob/master/diffusion.py)
 
-from src.mdlm.mdlm_scheduler import BaseAlphaScheduler, LinearAlphaScheduler, CosineAlphaScheduler
+from src.mdlm.mdlm_helpers.mdlm_scheduler import BaseAlphaScheduler, LinearAlphaScheduler, CosineAlphaScheduler
 
 import torch
 from transformers import AutoModelForMaskedLM
