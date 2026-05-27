@@ -1,0 +1,9 @@
+# ar
+
+Autoregressive (AR) model training and inference for story generation. 'ar_baseline.py' contains the code for a full train-generate loop.
+
+## Usage
+
+```bash
+python3 -m src.ar.ar_baseline
+```
