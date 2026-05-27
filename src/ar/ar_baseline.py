@@ -578,7 +578,7 @@ def run_inference(INFER_MODEL_LOAD_PATH, INFER_DATA_LOAD_PATH, INFER_DATA_SAVE_P
     ds = ds.map(
         generate_ar,
         batched=True,
-        batch_size=512,
+        batch_size=10,
         fn_kwargs={
             "tokenizer": tokenizer,
             "model": model,
@@ -643,7 +643,7 @@ if __name__ == "__main__":
                 TRAIN_DATA_LOAD_PATH=train_data_load_path,
                 TRAIN_MODEL_LOAD_PATH=train_model_load_path,
                 TRAIN_MODEL_SAVE_PATH=train_model_save_path,
-                num_samples=10000,
+                num_samples=100,
             )
             print(f"✓ [{round_name}] Training complete\n")
 
@@ -653,7 +653,7 @@ if __name__ == "__main__":
                 INFER_MODEL_LOAD_PATH=infer_model_load_path,
                 INFER_DATA_LOAD_PATH=infer_data_load_path,
                 INFER_DATA_SAVE_PATH=infer_data_save_path,
-                num_samples=10000,
+                num_samples=100,
             )
             print(f"✓ [{round_name}] Inference complete\n")
 
