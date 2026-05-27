@@ -421,7 +421,7 @@ def run_training(
 
         bf16=True,
         optim="adamw_torch_fused",
-        use_liger_kernel=True,
+        use_liger_kernel=False, # False on mps 
 
         dataloader_num_workers=4,
         dataloader_pin_memory=True,

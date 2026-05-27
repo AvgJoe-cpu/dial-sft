@@ -11,6 +11,7 @@ Requires-Dist: trl
 Requires-Dist: jinja2
 Requires-Dist: torchmetrics
 Requires-Dist: torch
+Requires-Dist: tensorboardX
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: black; extra == "dev"

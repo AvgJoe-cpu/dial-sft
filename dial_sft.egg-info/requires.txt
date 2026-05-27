@@ -4,6 +4,7 @@ trl
 jinja2
 torchmetrics
 torch
+tensorboardX
 
 [dev]
 pytest
