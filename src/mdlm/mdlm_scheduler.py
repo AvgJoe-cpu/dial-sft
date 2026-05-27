@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import math
-import torch
-
 import dataclasses
 import math
 from typing import Any, ClassVar, Union
 
-### THE ORIGINAL SAMPLING CODE 
+import torch
 
 Number = Union[float, torch.Tensor]
+
+
 # ---------------- Registry-enabled Base ---------------- #
 @dataclasses.dataclass
 class BaseAlphaScheduler:
@@ -136,3 +135,18 @@ def make_alpha_scheduler(name: str, **kwargs: Any) -> BaseAlphaScheduler:
     cls = get_alpha_scheduler_class(name)
     return cls(**kwargs)
 
+
+# ---------------- Example usage ---------------- #
+
+if __name__ == "__main__":
+    lin_sched = make_alpha_scheduler("LinearalphaScheduler")
+    print("Linear α(0.5):", lin_sched.alpha(0.5))
+    print("Linear w(0.5):", lin_sched.weight(0.5))
+    print("Linear α([.25,.5,.75]):", lin_sched.alpha(torch.tensor([0.25, 0.5, 0.75])))
+    print("Linear w([.25,.5,.75]):", lin_sched.weight(torch.tensor([0.25, 0.5, 0.75])))
+    print("==========================================")
+    cos_sched = make_alpha_scheduler("CosinealphaScheduler")
+    print("Cosine α(0.5):", cos_sched.alpha(0.5))
+    print("Cosine w(0.5):", cos_sched.weight(0.5))
+    print("Cosine α([.25,.5,.75]):", cos_sched.alpha(torch.tensor([0.25, 0.5, 0.75])))
+    print("Cosine w([.25,.5,.75]):", cos_sched.weight(torch.tensor([0.25, 0.5, 0.75])))
