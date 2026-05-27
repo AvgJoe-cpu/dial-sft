@@ -1,8 +1,12 @@
 from src.mdlm.mdlm_helpers.mdlm_scheduler import LinearAlphaScheduler, CosineAlphaScheduler, BaseAlphaScheduler
-import torch 
 
+from typing import Optional, Any
+from dataclasses import dataclass
+import torch 
+import torch.nn.functional as F 
 from transformers import (
     Trainer,
+    TrainingArguments
 )
 
 @dataclass
@@ -38,7 +42,32 @@ class SFTCollator:
             out[k] = torch.tensor(padded, dtype=torch.long)
         return out
 
+@dataclass
+class MDLMConfig(TrainingArguments):
+    time_epsilon: float = 0.001
+    loss_weight_type: str = "uniform"
 
+    batch_eval_metrics: bool = True
+    output_dir: str = "mdlm_output"
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        if not (0.0 < self.time_epsilon < 1.0):
+            raise ValueError(
+                f"time_epsilon must be in (0, 1), got {self.time_epsilon}"
+            )
+        if self.loss_weight_type not in ("scheduler", "uniform"):
+            raise ValueError(
+                f"loss_weight_type must be 'scheduler' or 'uniform', "
+                f"got {self.loss_weight_type!r}"
+            )
+        if not self.batch_eval_metrics:
+            raise ValueError(
+                "MDLMConfig requires batch_eval_metrics=True for per-token "
+                "NLL accumulation."
+            )
+        
 class MDLMSFTTrainer(Trainer):
     def __init__(
         self,
@@ -156,3 +185,78 @@ class MDLMSFTTrainer(Trainer):
         loss = token_nll.sum() / maskable_mask.sum().clamp_min(1)
 
         return loss, outputs, token_nll, maskable_mask
+
+
+
+# HAS TEST 
+def run_sft_trainer_smoke():
+    import torch.nn as nn
+    from types import SimpleNamespace
+    from datasets import Dataset
+    import tempfile
+
+    torch.manual_seed(0)
+
+    tok = SimpleNamespace(padding_side="right", mask_token_id=63, pad_token_id=0)
+
+    VOCAB = 64
+    class ToyLM(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.emb  = nn.Embedding(VOCAB, 16)
+            self.proj = nn.Linear(16, VOCAB)
+        def forward(self, input_ids, attention_mask=None, **_):
+            return SimpleNamespace(logits=self.proj(self.emb(input_ids)))
+
+    model   = ToyLM()
+    rows    = [
+        {"input_ids": [1,10,11,12,20,21,2],       "labels": [-100,-100,-100,-100,20,21,-100],       "assistant_mask": [0,0,0,0,1,1,0]},
+        {"input_ids": [1,10,11,30,31,32,33,2],     "labels": [-100,-100,-100,30,31,32,33,-100],      "assistant_mask": [0,0,0,1,1,1,1,0]},
+        {"input_ids": [1,10,11,12,13,40,2],        "labels": [-100,-100,-100,-100,-100,40,-100],     "assistant_mask": [0,0,0,0,0,1,0]},
+    ]
+    collator = SFTCollator(pad_token_id=tok.pad_token_id)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        args = MDLMConfig(
+            output_dir=tmp,
+            num_train_epochs=1,
+            per_device_train_batch_size=3,
+            learning_rate=1e-3,
+            logging_steps=1,
+            eval_strategy="no",
+            save_strategy="no",
+            report_to=[],
+            batch_eval_metrics=True,
+            remove_unused_columns=False,
+        )
+
+        def build(col):
+            return MDLMSFTTrainer(
+                model=model, args=args, train_dataset=Dataset.from_list(rows * 8),
+                processing_class=tok, data_collator=col,
+            )
+
+        # (a) training runs end-to-end
+        build(collator).train()
+
+        # (b) one forward → finite loss, correct shapes
+        batch = {k: v.to(next(model.parameters()).device) for k, v in collator(rows).items()}
+        loss, _, token_nll, maskable_mask = build(collator)._sft_forward(model, batch)
+        assert torch.isfinite(loss),                        f"non-finite loss: {loss}"
+        assert token_nll.shape == batch["input_ids"].shape
+        assert maskable_mask.dtype == torch.bool
+
+        # (c) wrong collator type → rejected
+        try:    build(SimpleNamespace(pad_token_id=tok.pad_token_id, __call__=collator))
+        except ValueError as e: assert "SFTCollator" in str(e)
+        else:   raise AssertionError("non-SFTCollator was accepted")
+
+        # (d) mismatched pad_token_id → rejected
+        try:    build(SFTCollator(pad_token_id=tok.pad_token_id + 1))
+        except ValueError as e: assert "pad_token_id" in str(e)
+        else:   raise AssertionError("mismatched pad_token_id was accepted")
+
+    print(f"  final-step loss : {loss.item():.4f}")
+    print(f"  response tokens : {int(maskable_mask.sum().item())}")
+if __name__ == "__main__":
+    run_sft_trainer_smoke()

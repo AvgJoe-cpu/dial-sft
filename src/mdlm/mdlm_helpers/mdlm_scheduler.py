@@ -6,6 +6,7 @@ from typing import Any, ClassVar, Union
 
 import torch
 
+### COPIED FROM: https://github.com/ZHZisZZ/dllm/blob/main/dllm/core/schedulers/alpha.py
 Number = Union[float, torch.Tensor]
 
 

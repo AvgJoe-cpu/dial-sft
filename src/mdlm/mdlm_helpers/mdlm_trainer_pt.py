@@ -186,7 +186,7 @@ class MDLMTrainer(Trainer):
         return loss, outputs, token_nll, maskable_mask
 
 
-
+# HAS TEST 
 if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     model = AutoModelForMaskedLM.from_pretrained("bert-base-uncased")
