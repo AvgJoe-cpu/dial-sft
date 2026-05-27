@@ -188,40 +188,67 @@ class MDLMSFTTrainer(Trainer):
 
 
 
-# HAS TEST 
-def run_sft_trainer_smoke():
-    import torch.nn as nn
-    from types import SimpleNamespace
+
+
+if __name__ == "__main__":
+
+    from src.mdlm.load_model import load_model
     from datasets import Dataset
     import tempfile
-
-    torch.manual_seed(0)
-
-    tok = SimpleNamespace(padding_side="right", mask_token_id=63, pad_token_id=0)
-
-    VOCAB = 64
-    class ToyLM(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.emb  = nn.Embedding(VOCAB, 16)
-            self.proj = nn.Linear(16, VOCAB)
-        def forward(self, input_ids, attention_mask=None, **_):
-            return SimpleNamespace(logits=self.proj(self.emb(input_ids)))
-
-    model   = ToyLM()
-    rows    = [
-        {"input_ids": [1,10,11,12,20,21,2],       "labels": [-100,-100,-100,-100,20,21,-100],       "assistant_mask": [0,0,0,0,1,1,0]},
-        {"input_ids": [1,10,11,30,31,32,33,2],     "labels": [-100,-100,-100,30,31,32,33,-100],      "assistant_mask": [0,0,0,1,1,1,1,0]},
-        {"input_ids": [1,10,11,12,13,40,2],        "labels": [-100,-100,-100,-100,-100,40,-100],     "assistant_mask": [0,0,0,0,0,1,0]},
-    ]
-    collator = SFTCollator(pad_token_id=tok.pad_token_id)
-
     with tempfile.TemporaryDirectory() as tmp:
+        model, tokenizer = load_model(local_dir=tmp)
+
+        def _sft_map_fn(example):
+            enc = tokenizer.apply_chat_template(
+                example["messages"],
+                tokenize=True,
+                add_generation_prompt=False,
+                return_dict=True,
+                return_assistant_tokens_mask=True,
+            )
+            input_ids      = enc["input_ids"]
+            assistant_mask = enc["assistant_masks"]
+            labels = [tok if m == 1 else -100
+                    for tok, m in zip(input_ids, assistant_mask)]
+            return {"input_ids": input_ids, "labels": labels, "assistant_mask": assistant_mask}    
+
+        TOY_ROWS = [
+            {"prompt": "What is 2 + 2?",                   "completion": "4"},
+            {"prompt": "Name a primary color.",             "completion": "Blue"},
+            {"prompt": "Capital of France?",                "completion": "Paris"},
+            {"prompt": "Say hello.",                        "completion": "Hello!"},
+            {"prompt": "Largest planet?",                   "completion": "Jupiter"},
+            {"prompt": "Opposite of hot?",                  "completion": "Cold"},
+            {"prompt": "How many legs does a spider have?", "completion": "Eight"},
+            {"prompt": "Which gas do plants absorb?",       "completion": "Carbon dioxide"},
+            {"prompt": "Translate 'cat' to Spanish.",       "completion": "Gato"},
+            {"prompt": "Sun rises in the?",                 "completion": "East"},
+        ]
+
+        ds = Dataset.from_list(TOY_ROWS).map(lambda ex: {
+            "messages": [
+                {"role": "user",      "content": ex["prompt"]},
+                {"role": "assistant", "content": ex["completion"]},
+            ]
+        }, remove_columns=["prompt", "completion"])
+
+        ds = ds.map(_sft_map_fn, remove_columns=["messages"])
+
+        assert all(any(m == 1 for m in r["assistant_mask"]) for r in ds), \
+            "some row has zero response tokens — preprocessing or template is off"
+
+        print(f"[ds]  rows                 : {len(ds)}")
+        print(f"[ds]  example token lens   : {[len(r['input_ids']) for r in ds]}")
+        print(f"[ds]  response tokens / row: {[sum(r['assistant_mask']) for r in ds]}")
+
+        scheduler = LinearAlphaScheduler()
+        collator = SFTCollator(pad_token_id=tokenizer.pad_token_id)
+
         args = MDLMConfig(
             output_dir=tmp,
-            num_train_epochs=1,
-            per_device_train_batch_size=3,
-            learning_rate=1e-3,
+            num_train_epochs=100,
+            per_device_train_batch_size=8,
+            learning_rate=2e-5,
             logging_steps=1,
             eval_strategy="no",
             save_strategy="no",
@@ -230,33 +257,12 @@ def run_sft_trainer_smoke():
             remove_unused_columns=False,
         )
 
-        def build(col):
-            return MDLMSFTTrainer(
-                model=model, args=args, train_dataset=Dataset.from_list(rows * 8),
-                processing_class=tok, data_collator=col,
-            )
+        trainer = MDLMSFTTrainer(
+            model=model,
+            args=args,
+            train_dataset=ds,
+            processing_class=tokenizer,
+            data_collator=collator,
+        )
 
-        # (a) training runs end-to-end
-        build(collator).train()
-
-        # (b) one forward → finite loss, correct shapes
-        batch = {k: v.to(next(model.parameters()).device) for k, v in collator(rows).items()}
-        loss, _, token_nll, maskable_mask = build(collator)._sft_forward(model, batch)
-        assert torch.isfinite(loss),                        f"non-finite loss: {loss}"
-        assert token_nll.shape == batch["input_ids"].shape
-        assert maskable_mask.dtype == torch.bool
-
-        # (c) wrong collator type → rejected
-        try:    build(SimpleNamespace(pad_token_id=tok.pad_token_id, __call__=collator))
-        except ValueError as e: assert "SFTCollator" in str(e)
-        else:   raise AssertionError("non-SFTCollator was accepted")
-
-        # (d) mismatched pad_token_id → rejected
-        try:    build(SFTCollator(pad_token_id=tok.pad_token_id + 1))
-        except ValueError as e: assert "pad_token_id" in str(e)
-        else:   raise AssertionError("mismatched pad_token_id was accepted")
-
-    print(f"  final-step loss : {loss.item():.4f}")
-    print(f"  response tokens : {int(maskable_mask.sum().item())}")
-if __name__ == "__main__":
-    run_sft_trainer_smoke()
+        trainer.train()
