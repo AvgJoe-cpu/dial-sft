@@ -263,6 +263,7 @@ if __name__ == "__main__":
             train_dataset=ds,
             processing_class=tokenizer,
             data_collator=collator,
+            scheduler=scheduler
         )
 
         trainer.train()

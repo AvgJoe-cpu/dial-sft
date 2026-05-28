@@ -4,6 +4,7 @@ import torch
 from huggingface_hub import download_bucket_files
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 
+import os 
 
 def resize_mdlm_vocab(model, new_vocab: int) -> None:
     backbone = model.backbone
@@ -42,7 +43,7 @@ def resize_mdlm_vocab(model, new_vocab: int) -> None:
 
 def load_model(
     bucket: str = "avgJo3/mdlm-owt-bucket",
-    local_dir: str = "./local",
+    local_dir: str = "./weights",
     tokenizer_name: str = "gpt2",
     verbose: bool = True,
 ):
@@ -76,20 +77,25 @@ def load_model(
     {%- endif %}
     """.strip()
     
-    extra_special_tokens = [
-        "<|im_start|>", "<|im_end|>", "<|user|>", "<|assistant|>", "<|system|>",
-    ]
+    #extra_special_tokens = [
+    #    "<|im_start|>", "<|im_end|>", "<|user|>", "<|assistant|>", "<|system|>",
+    #]
 
     # 1. ---- download checkpoint artifacts ---------------------------------
-    download_bucket_files(
-        bucket,
-        files=[
-            ("model.safetensors",     f"{local_dir}/model.safetensors"),
-            ("modeling_mdlm.py",      f"{local_dir}/modeling_mdlm.py"),
-            ("config.json",           f"{local_dir}/config.json"),
-            ("configuration_mdlm.py", f"{local_dir}/configuration_mdlm.py"),
-        ],
-    )
+    files = [
+        ("model.safetensors",     f"{local_dir}/model.safetensors"),
+        ("modeling_mdlm.py",      f"{local_dir}/modeling_mdlm.py"),
+        ("config.json",           f"{local_dir}/config.json"),
+        ("configuration_mdlm.py", f"{local_dir}/configuration_mdlm.py"),
+    ]
+
+    missing = [(src, dst) for src, dst in files if not os.path.exists(dst)]
+    if missing:
+        if verbose:
+            print(f"Downloading {len(missing)} missing file(s)...")
+        download_bucket_files(bucket, files=missing)
+    elif verbose:
+        print("All checkpoint files already present, skipping download.")
 
     # 2. ---- load model ----------------------------------------------------
     model = AutoModelForMaskedLM.from_pretrained(
