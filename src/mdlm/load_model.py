@@ -1,5 +1,6 @@
 import math
 import os
+from xml.parsers.expat import model
 
 import torch
 from huggingface_hub import download_bucket_files
@@ -102,9 +103,21 @@ def load_model(
         local_dir,  # or absolute path
         trust_remote_code=True,
     )
-
+    print(next(model.parameters()).dtype)
+    if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+        model = model.to(torch.bfloat16)
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        # MPS supports bfloat16 on M-series chips
+        model = model.to(torch.bfloat16)
+    else:
+        print("bfloat16 not supported, keeping float32")    
     # 3. ---- tokenizer: base -> template -> specials -> pad ----------------
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    tokenizer_cache_dir = os.path.join(local_dir, "tokenizer")
+    if os.path.isdir(tokenizer_cache_dir):
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache_dir)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        tokenizer.save_pretrained(tokenizer_cache_dir)
 
     if verbose:
         print(f"[tok] base tokenizer      : {tokenizer_name}")
