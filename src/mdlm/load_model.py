@@ -57,7 +57,7 @@ def load_model(
       3. Build tokenizer  ->  attach chat template  ->  add special tokens
          ->  set pad token. This finalizes len(tokenizer) BEFORE resize.
       4. Snapshot the MASK row at id 50257.
-      5. Resize the model vocab to len(tokenizer) (append-only).
+      5. Resize the model vocab to the next multiple of 64 >= len(tokenizer).
       6. Verify shapes and that the MASK row is byte-identical.
     """
 
@@ -105,6 +105,18 @@ def load_model(
 
     # 3. ---- tokenizer: base -> template -> specials -> pad ----------------
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+
+    if verbose:
+        print(f"[tok] base tokenizer      : {tokenizer_name}")
+        print(f"[tok] base vocab size     : {len(tokenizer)}")
+        print(f"[tok] bos_token           : {tokenizer.bos_token!r}  (id {tokenizer.bos_token_id})")
+        print(f"[tok] eos_token           : {tokenizer.eos_token!r}  (id {tokenizer.eos_token_id})")
+        print(f"[tok] unk_token           : {tokenizer.unk_token!r}  (id {tokenizer.unk_token_id})")
+        print(f"[tok] pad_token (before)  : {tokenizer.pad_token!r}  (id {tokenizer.pad_token_id})")
+        print(f"[tok] mask_token (before) : {tokenizer.mask_token!r}  (id {tokenizer.mask_token_id})")
+        base_special = tokenizer.all_special_tokens
+        print(f"[tok] special tokens ({len(base_special)}) : {base_special}")
+
     tokenizer.chat_template = chat_template_str
     tokenizer.add_special_tokens(
         {
@@ -121,6 +133,15 @@ def load_model(
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    if verbose:
+        print(f"[tok] vocab size after adding specials: {len(tokenizer)}")
+        print(f"[tok] mask_token (after)  : {tokenizer.mask_token!r}  (id {tokenizer.mask_token_id})")
+        print(f"[tok] pad_token  (after)  : {tokenizer.pad_token!r}  (id {tokenizer.pad_token_id})")
+        all_special = tokenizer.all_special_tokens
+        print(f"[tok] all special tokens ({len(all_special)}):")
+        for tok in all_special:
+            print(f"        {tok!r:25s}  id={tokenizer.convert_tokens_to_ids(tok)}")
+
     # 4. ---- verify pretrained vocab and snapshot the MASK row -------------
     old_vocab = model.backbone.vocab_embed.embedding.shape[0]
     if verbose:
@@ -128,14 +149,17 @@ def load_model(
     assert old_vocab >= 50258, "checkpoint smaller than expected"
     mask_row_before = model.backbone.vocab_embed.embedding[50257].detach().clone().cpu()
 
-    # 5. ---- grow model vocab to match tokenizer ---------------------------
-    resize_mdlm_vocab(model, len(tokenizer))
+    # 5. ---- grow model vocab to next multiple of 64 >= len(tokenizer) -----
+    padded_vocab = math.ceil(len(tokenizer) / 64) * 64
+    resize_mdlm_vocab(model, padded_vocab)
 
     # 6. ---- post-conditions ----------------------------------------------
     new_vocab = model.backbone.vocab_embed.embedding.shape[0]
     if verbose:
-        print(f"[mdl] resized vocab size   : {new_vocab}")
-    assert new_vocab == len(tokenizer)
+        print(f"[mdl] tokenizer vocab size : {len(tokenizer)}")
+        print(f"[mdl] resized vocab size   : {new_vocab}  (padded to multiple of 64)")
+    assert new_vocab == padded_vocab
+    assert new_vocab >= len(tokenizer)
     assert model.backbone.output_layer.linear.weight.shape == (
         new_vocab,
         model.config.hidden_dim,
