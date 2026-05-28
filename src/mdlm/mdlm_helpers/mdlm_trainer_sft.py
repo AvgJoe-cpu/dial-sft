@@ -1,12 +1,14 @@
 from src.mdlm.mdlm_helpers.mdlm_scheduler import LinearAlphaScheduler, CosineAlphaScheduler, BaseAlphaScheduler
 
-from typing import Optional, Any
+import math, numpy as np
+from typing import Optional, Any, Dict
 from dataclasses import dataclass
 import torch 
 import torch.nn.functional as F 
 from transformers import (
     Trainer,
-    TrainingArguments
+    TrainingArguments,
+    EvalPrediction,
 )
 
 @dataclass
@@ -68,6 +70,32 @@ class MDLMConfig(TrainingArguments):
                 "NLL accumulation."
             )
         
+
+#------------------------------------------------------------------        
+# REWRITE OF THE METRICS 
+class NLLPPLMetricComputer:
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.sum_nll = 0.0
+        self.sum_w = 0.0
+
+    def __call__(self, eval_pred: EvalPrediction, compute_result: bool) -> Dict[str, float]:
+        token_nll = np.asarray(eval_pred.predictions.cpu(), dtype=np.float64)
+        weight    = np.asarray(eval_pred.label_ids.cpu(), dtype=np.float64)
+        
+        self.sum_nll += float(token_nll.sum())
+        self.sum_w   += float(weight.sum())
+
+        if not compute_result:
+            return {}
+
+        mean_nll = self.sum_nll / max(self.sum_w, 1.0)
+        ppl = math.exp(mean_nll)
+        self.reset()
+        return {"nll": mean_nll, "ppl": ppl}
+            
 class MDLMSFTTrainer(Trainer):
     def __init__(
         self,

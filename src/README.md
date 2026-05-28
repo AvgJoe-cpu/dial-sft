@@ -11,7 +11,8 @@ src/
 ├── mdlm/
 │   ├── modeling_mdlm.py      # MDLM model definition
 │   ├── load_model.py         # Model loading utilities
-│   ├── mdlm_baseline.py      # MDLM baseline
+│   ├── mdlm_train_sft.py      # MDLM baseline sft
+│   ├── mdlm_inference.py      # MDLM baseline inference
 │   └── mdlm_helpers/
 │       ├── mdlm_sampler_pt.py    # Pretraining sampler
 │       ├── mdlm_sampler_sft.py   # SFT sampler
