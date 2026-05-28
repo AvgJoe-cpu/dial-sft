@@ -8,10 +8,6 @@ from datasets import load_dataset, Dataset, load_from_disk
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
-#dd = load_dataset("euclaise/writingprompts")
-#train_ds = dd['train'].select(range(10)).rename_column('story', 'completion')
-#model, tokenizer = load_model(local_dir="./weights/base")
-
 
 def format_to_messages(example):
     return {
@@ -20,7 +16,6 @@ def format_to_messages(example):
             {"role": "assistant", "content": example["completion"]}
         ]
     }
-############
 
 def run_training(
     TRAIN_DATA_LOAD_PATH: str,
@@ -174,23 +169,9 @@ def run_inference_mdlm():
 
 
 if __name__ == "__main__":
-    TRAIN_OG_PATH       = "euclaise/writingprompts"
-    TRAIN_OG_SAVE_PATH  = "./datasets/base/train"
-    EVAL_OG_SAVE_PATH   = "./datasets/base/eval"
-    TEST_OG_SAVE_PATH   = "./datasets/base/test"
-
-    from src.ar.ar_baseline import setup_model_and_tokenizer, process_and_save_datasets, count_tokens_in_column_batched
-
-    _, tokenizer = setup_model_and_tokenizer(model_name="EleutherAI/pythia-70m")
-    process_and_save_datasets(
-        dataset_name=TRAIN_OG_PATH,
-        tokenizer=tokenizer,
-        train_save_path=TRAIN_OG_SAVE_PATH,
-        eval_save_path=EVAL_OG_SAVE_PATH,
-        test_save_path=TEST_OG_SAVE_PATH,
-    )
-    
-    del tokenizer
+    TRAIN_OG_SAVE_PATH  = "./datasets/base/writingprompts_train"
+    EVAL_OG_SAVE_PATH   = "./datasets/base/writingprompts_eval"
+    TEST_OG_SAVE_PATH   = "./datasets/base/writingprompts_test"
 
     CONFIG_DICT = {
         "ROUND1": {
