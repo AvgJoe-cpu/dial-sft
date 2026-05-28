@@ -117,6 +117,8 @@ class CosineAlphaScheduler(BaseAlphaScheduler):
         return -(math.pi / 2) * torch.sin((math.pi / 2) * (1 - i))
 
 
+BaseAlphaScheduler.__registry__["linear"] = LinearAlphaScheduler
+BaseAlphaScheduler.__registry__["cosine"] = CosineAlphaScheduler
 # ---------------- Factory helpers ---------------- #
 
 
