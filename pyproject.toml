@@ -19,6 +19,7 @@ dependencies = [
     "torchmetrics",
     "torch",
     "tensorboardX",
+    "typer[all]",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +29,11 @@ dev = [
     "isort",
     "flake8",
 ]
+
+[project.scripts]
+process-dataset = "src.scripts.process_dataset:app"
+mdlm-train-sft  = "src.scripts.mdlm_train_sft:app"
+
 [tool.pylint.format]
 max-line-length = 88
 [tool.black]
