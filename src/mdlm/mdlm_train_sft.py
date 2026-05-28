@@ -21,7 +21,7 @@ class TrainingConfig:
     max_length:int = 256
 
     # --- MDLMConfig / TrainingArguments contract ---
-    num_epochs:            int   = 3
+    num_epochs:            int   = 2
     batch_size:            int   = 16
     learning_rate:         float = 2e-5
     logging_steps:         int   = 1

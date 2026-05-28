@@ -1,8 +1,8 @@
 from src.mdlm.load_model import load_model
 from src.mdlm.mdlm_helpers.mdlm_scheduler import BaseAlphaScheduler, LinearAlphaScheduler
 from src.mdlm.mdlm_helpers.mdlm_sampler_sft import MDLMSamplerConfig, MinimalMDLMSampler, SFTMixinBatchedVarlen
-
-from dataclasses import dataclasses, dataclass
+import dataclasses
+from dataclasses import dataclass
 import gc, torch
 from datasets import load_from_disk
 
@@ -10,11 +10,11 @@ from datasets import load_from_disk
 class InferenceConfig:
     # --- data & model paths ---
     INFERENCE_LOAD_PATH:   str = "./datasets/base/writingprompts_test"
-    INFERENCE_SAVE_PATH:   str = "./datasets/inference/mdlm_generations"
+    INFERENCE_SAVE_PATH:   str = "./datasets/checkpoints/mdlm_generations"
     INFERENCE_MODEL_PATH:  str = "./weights/base"
 
     # --- dataset ---
-    num_samples:           int = 1000
+    num_samples:           int = 10
     batch_size:            int = 2
 
     # --- MDLMSamplerConfig contract ---
@@ -109,5 +109,6 @@ def run_inference_mdlm(config: InferenceConfig = InferenceConfig()):
     gc.collect()
     if torch.device.type == "cuda":
         torch.cuda.empty_cache()
+    
 
-    return ds
+run_inference_mdlm()
