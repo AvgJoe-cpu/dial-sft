@@ -1,25 +1,40 @@
-# data & model paths
-TRAIN_DATA_LOAD_PATH: "./datasets/base/writingprompts_train"
-TEST_DATA_LOAD_PATH:  "./datasets/base/writingprompts_test"
-TRAIN_MODEL_LOAD_PATH: "./weights/base"
-TRAIN_MODEL_SAVE_PATH: "./weights/checkpoints"
+defaults:
+  - _self_
+  - model: mdlm_0_2b
+  - stage: d0          # default stage; override with `stage=d1|d2|d3`
 
-# dataset
-num_train_samples: 1000
-num_test_samples: 1000
-num_workers: 4
-max_length: 1024
+seed: 42
 
-# training
-num_epochs: 1
-batch_size: 8
-learning_rate: 2e-5
-logging_steps: 10
-time_epsilon: 0.001
-loss_weight_type: "uniform"
+paths:
+  # stage-specific train path is set in conf/stage/*.yaml
+  test_data:  "./datasets/base/writingprompts_test"
+  eval_data:  "./datasets/base/writingprompts_eval"
+  model_load: "./weights/base"
+  model_save: "./weights/checkpoints/${stage_name}"
+  log_dir:    "./runs/pilot/${stage_name}"
 
-eval_strategy: "steps"
-eval_steps: 100
-save_strategy: "no"
-report_to:
-  - "tensorboard"
+dataset:
+  num_test_samples: 2000
+  num_workers:      4
+  max_length:       1024                  # ∈ {512, 768, 1024}
+  id_field:         "id"
+
+training:
+  num_epochs:    1
+  batch_size:    8
+  learning_rate: 5.0e-5
+  weight_decay:  0.01
+  warmup_ratio:  0.03
+  grad_clip:     1.0
+  logging_steps: 10
+
+eval:
+  strategy:      "steps"
+  steps:         100
+  save_strategy: "no"
+  metric:        "masked_lm_loss"
+  report_to:
+    - "tensorboard"
+
+# filled by stage configs
+stage_name: "stage0"

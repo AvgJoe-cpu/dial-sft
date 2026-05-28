@@ -1,0 +1,11 @@
+# @package _global_
+# Stage 0 — D0: smallest subset, coarse search
+stage_name: "stage0"
+dataset:
+  stage: 0
+paths:
+  train_data: "./datasets/base/w_D0"
+training:
+  num_epochs: 1
+eval:
+  steps: 100

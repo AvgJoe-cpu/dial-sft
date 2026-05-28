@@ -26,7 +26,10 @@ def main(cfg: DictConfig) -> None:
         batch_size=cfg.batch_size,
         learning_rate=cfg.learning_rate,
         logging_steps=cfg.logging_steps,
-        time_epsilon=cfg.time_epsilon,
+        
+        scheduler=cfg.model.scheduler,
+        loss_weight_type=cfg.model.loss_weight_type,
+        time_epsilon=cfg.model.time_epsilon,        
         # eval
         eval_strategy=cfg.eval_strategy,
         eval_steps=cfg.eval_steps,

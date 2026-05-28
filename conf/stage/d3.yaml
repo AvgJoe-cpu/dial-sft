@@ -1,0 +1,12 @@
+# @package _global_
+# Stage 3 — D3: final validation on full / largest subset
+stage_name: "stage3"
+dataset:
+  stage: 3
+paths:
+  train_data: "./datasets/base/w_D3"
+training:
+  num_epochs: 1
+eval:
+  steps: 5000
+save_strategy: "steps"

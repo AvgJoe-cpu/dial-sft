@@ -1,0 +1,11 @@
+# @package _global_
+# Stage 1 — D1: narrow around top configs from D0
+stage_name: "stage1"
+dataset:
+  stage: 1
+paths:
+  train_data: "./datasets/base/w_D1"
+training:
+  num_epochs: 1
+eval:
+  steps: 500

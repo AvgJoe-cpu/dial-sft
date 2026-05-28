@@ -6,7 +6,7 @@ import torch
 from datasets import load_from_disk
 from src.mdlm.load_model import load_model
 from src.mdlm.mdlm_helpers.mdlm_scheduler import (BaseAlphaScheduler,
-                                                  LinearAlphaScheduler)
+                                                  LinearAlphaScheduler, make_alpha_scheduler)
 from src.mdlm.mdlm_helpers.mdlm_trainer_sft import (MDLMConfig, MDLMSFTTrainer,
                                                     NLLPPLMetricComputer,
                                                     SFTCollator)
@@ -32,15 +32,15 @@ class TrainingConfig:
     batch_size: int = 16
     learning_rate: float = 2e-5
     logging_steps: int = 1
+    scheduler: str = "linear"            # "linear" | "cosine"
+    loss_weight_type: str = "uniform"    # "uniform" | "scheduler"
     time_epsilon: float = 0.001
-    loss_weight_type: str = "uniform"
 
     # --- reporting & checkpointing ---
     eval_strategy: str = "steps"
     eval_steps: int = 50    
     save_strategy: str = "no"
     report_to: list = field(default_factory=lambda: ["tensorboard"])
-
 
 def run_training(config: TrainingConfig = TrainingConfig()):
     def format_to_messages(example):
@@ -84,7 +84,8 @@ def run_training(config: TrainingConfig = TrainingConfig()):
     test_ds = test_ds.map(format_to_messages).map(_sft_map_fn)
     test_ds = test_ds.select_columns(["input_ids", "labels", "assistant_mask"])
 
-    scheduler = LinearAlphaScheduler()
+    scheduler = make_alpha_scheduler(config.scheduler)
+
     collator = SFTCollator(pad_token_id=tokenizer.pad_token_id)
 
     args = MDLMConfig(

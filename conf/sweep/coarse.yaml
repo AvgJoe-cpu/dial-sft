@@ -1,0 +1,7 @@
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      model.scheduler: linear,cosine
+      model.loss_weight_type: uniform,scheduler
+      training.learning_rate: 5e-5,1e-4,5e-4

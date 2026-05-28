@@ -1,0 +1,12 @@
+# @package _global_
+# Stage 2 — D2: refine on best survivors
+stage_name: "stage2"
+dataset:
+  stage: 2
+paths:
+  train_data: "./datasets/base/w_D2"
+training:
+  num_epochs: 1
+eval:
+  steps: 2000
+eval_strategy_save: "steps"

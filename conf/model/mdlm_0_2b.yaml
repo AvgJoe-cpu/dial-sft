@@ -1,0 +1,6 @@
+# @package _global_
+model:
+  name:             "mdlm-0.2b"
+  scheduler:        "linear"            # "linear" | "cosine"  → α(t) family
+  loss_weight_type: "uniform"           # "uniform" | "scheduler"
+  time_epsilon:     0.001
