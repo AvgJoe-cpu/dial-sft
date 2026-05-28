@@ -5,3 +5,33 @@ __pycache__/
 .vscode/
 .idea/
 .DS_Store
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Environment variables
+.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# PyTest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Model weights / data (common for SFT/ML repos)
+*.bin
+*.safetensors
+*.ckpt
+*.pt
