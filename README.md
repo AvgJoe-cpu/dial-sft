@@ -13,13 +13,13 @@ dial-sft/
 ```
 
 
-## Experiments
+## Experiments 
 
 ### Pilot
 
-**Goal:** Quickly find reasonable values for the **alpha scheduler** (which defines the masking-rate function `α(t)`) and the learning rate that produce stable, non-collapsed training on the mask[...]
+**Goal:** Quickly find reasonable values for the **alpha scheduler** (which defines the masking-rate function `α(t)`) and the learning rate that produce stable, non-collapsed training on the masked objective of the base Diffusion LLM. This pilot asks: *What are generally the best parameters for our downstream dataset?*
 
-Hyperparameter search uses `N` progressive stages with nested sub-datasets of increasing size (`D₀ ⊂ D₁ ⊂ … ⊂ D_{N-1}`), where sample sizes increase in fixed steps (e.g., `10k → 100k[...]`).
+Hyperparameter search uses `N` progressive stages with nested sub-datasets of increasing size (`D₀ ⊂ D₁ ⊂ … ⊂ D_{N-1}`), where sample sizes increase in fixed steps (e.g., `10k → 100k → full`).
 
 **Tunable parameters:**
 - **Alpha scheduler** (`α(t)` family): `linear` vs. `cosine` — controls how the per-step masking probability `1 − α(t)` evolves with diffusion time `t`.
@@ -28,7 +28,7 @@ Hyperparameter search uses `N` progressive stages with nested sub-datasets of in
 - **Learning rate (LR):** standard reference values for MDLM (e.g., `5e-5` → `5e-4`).
 - **`max_length`:** `{512, 768, 1024}`.
 
-**Stage `k` (`D_k`):** Coarse-to-fine grid / random search. Early stages use broad ranges (e.g., 5–7 values per parameter); later stages narrow around the top 2–3 configurations from the prior[...]
+**Stage `k` (`D_k`):** Coarse-to-fine grid / random search. Early stages use broad ranges (e.g., 5–7 values per parameter); later stages narrow around the top 2–3 configurations from the prior stage. Ranking uses masked-LM loss / perplexity on the withheld test set.
 
 **Training protocol per trial:**
 - Restart from base MDLM weights for every trial.
@@ -38,42 +38,40 @@ Hyperparameter search uses `N` progressive stages with nested sub-datasets of in
 
 ### Implementation: Constructing the Nested Sub-datasets (`D₀ ⊆ D₁ ⊆ … ⊆ D`)
 
-The key property is guaranteed by one-time shuffling with a fixed random seed and then taking prefixes of the shuffled list. This ensures every smaller subset is literally contained inside every l[...]
+The key property is guaranteed by one-time shuffling with a fixed random seed and then taking prefixes of the shuffled list. This ensures every smaller subset is literally contained inside every larger one (no distribution shift between stages), while the full dataset `D` is only shuffled once for perfect reproducibility.
 
-We follow established practices: Yu et al. (2024) and Shleifer & Prokop (2019) demonstrate that hyperparameter configurations identified on small representative subsets transfer reliably to larger[...]
+We follow established practices: Yu et al. (2024) and Shleifer & Prokop (2019) demonstrate that hyperparameter configurations identified on small representative subsets transfer reliably to larger datasets, enabling substantial compute savings while preserving model quality.
 
 **Algorithm — Nested Sub-dataset Construction**
 
 - **Require:** Full human-authored dataset `D`; list of target sizes `sizes = [s₀, s₁, …, s_{N-1}]` (sorted ascending, `s₀ < s₁ < … < s_{N-1}`).
 - **Ensure:** Nested subsets `D₀ ⊂ D₁ ⊂ … ⊂ D_{N-1}`.
 
-```
-1. Set random seed to 42
-2. shuffled_D ← shuffle(copy of D)
-3. subsets ← ∅
-4. for i ← 0 to |sizes| − 1 do
-5.     target_size ← sizes[i]
-6.     subsets["D" + str(i)] ← shuffled_D[0 : target_size]
-7. end for
-8. return subsets
-```
+1. Set random seed to `42`.
+2. `shuffled_D ← shuffle(copy of D)`
+3. `subsets ← ∅`
+4. **for** `i ← 0` **to** `|sizes| − 1` **do**
+5. &nbsp;&nbsp;&nbsp;&nbsp;`target_size ← sizes[i]`
+6. &nbsp;&nbsp;&nbsp;&nbsp;`subsets["D" + str(i)] ← shuffled_D[0 : target_size]`
+7. **end for**
+8. **return** `subsets`
 
-This algorithm performs a single reproducible shuffle of the full dataset and constructs strictly nested prefixes, ensuring `D₀ ⊆ D₁ ⊆ … ⊆ D_{N-1}`. The resulting sub-datasets are used[...]
+This algorithm performs a single reproducible shuffle of the full dataset and constructs strictly nested prefixes, ensuring `D₀ ⊆ D₁ ⊆ … ⊆ D_{N-1}`. The resulting sub-datasets are used for the progressive multi-stage hyperparameter search.
 
 
 **References**
 
-- Yu, S., Pritchard, M., Ma, P.-L., Singh, B., & Silva, S. (2024). *Two-step hyperparameter optimization method: Accelerating hyperparameter search by using a fraction of a training dataset.* Arti[...]
+- Yu, S., Pritchard, M., Ma, P.-L., Singh, B., & Silva, S. (2024). *Two-step hyperparameter optimization method: Accelerating hyperparameter search by using a fraction of a training dataset.* Artificial Intelligence for the Earth Systems, 3(1). https://doi.org/10.1175/AIES-D-23-0013.1 (arXiv:2302.03845)
 - Shleifer, S., & Prokop, E. (2019). *Using small proxy datasets to accelerate hyperparameter search.* arXiv preprint arXiv:1906.04887.
 
----
+------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 ### Experiment 1 — Subset Sampling Study (AUG)
 
 #### Objective
 
-This experiment investigates the impact of training on subsets with controlled **length** and **distribution** properties on model performance in recursive synthetic training. It specifically exam[...]
+This experiment investigates the impact of training on subsets with controlled **length** and **distribution** properties on model performance in recursive synthetic training. It specifically examines whether training on short examples affects generalization when evaluated on unaltered (potentially longer) test data — and the reverse.
 
 #### Variants
 
@@ -94,12 +92,12 @@ For each variant, both `train` and `test` subsets are derived consistently. An a
 
 #### Subset combinations and runs
 
-| Category           | Run | Train subset      | Test / evaluation subsets                                                                      |
-|--------------------|-----|-------------------|-----------------------------------------------------------------------------------------------|
-| Baseline runs      | (A) | `ds_train_strat`  | `ds_test_strat` (matched distribution)                                                        |
-| Baseline runs      | (B) | `ds_train_rand`   | `ds_test_rand` (random control)                                                               |
-| Generalization runs | (C) | `ds_train_len`   | `ds_test_len` (matched short), `ds_test_rand` (random), `ds_test_strat` (stratified / full distribution) |
-| Generalization runs | (D) | `ds_train_strat` | `ds_test_strat` (matched), `ds_test_len` (short), `ds_test_rand` (random)                    |
+| Category | Run | Train subset | Test / evaluation subsets |
+|---|---|---|---|
+| Baseline runs | (A) | `ds_train_strat` | `ds_test_strat` (matched distribution) |
+| Baseline runs | (B) | `ds_train_rand` | `ds_test_rand` (random control) |
+| Generalization runs | (C) | `ds_train_len` | `ds_test_len` (matched short), `ds_test_rand` (random), `ds_test_strat` (stratified / full distribution) |
+| Generalization runs | (D) | `ds_train_strat` | `ds_test_strat` (matched), `ds_test_len` (short), `ds_test_rand` (random) |
 
 #### Research questions
 
@@ -113,11 +111,13 @@ For each variant, both `train` and `test` subsets are derived consistently. An a
 
 This design isolates the effect of length distribution while remaining compatible with the main recursive synthetic training chain (Algorithm 1).
 
-#### Procedure
+**Require:** Human-authored seed dataset \(D_0\), base Diffusion LLM \(M_{\text{base}}\), number of iterations \(n\), optional filter function \(f_{\text{filter}}\)  
+**Ensure:** Sequence of models \(M_1, M_2, \dots, M_n\) trained under increasing synthetic data regimes
 
 #### Procedure
-- **Require:** Human-authored seed dataset \(D_0\), base Diffusion LLM \(M_{\text{base}}\), number of iterations \(n\), optional filter function \(f_{\text{filter}}\)
-- **Ensure:** Sequence of models \(M_1, M_2, \dots, M_n\) trained under increasing synthetic data regimes
+
+- **Require:** Human-authored seed dataset $D_0$, base Diffusion LLM $M_\text{base}$, number of iterations $n$, optional filter function $f_\text{filter}$
+- **Ensure:** Sequence of models $M_1, M_2, \dots, M_n$ trained under increasing synthetic data regimes
 
 ```text
 for i ← 1 to n do
@@ -139,11 +139,10 @@ end for
 ```
 
 #### Detailed Procedure
-#### Detailed Procedure
 
-- **\(M_1\)** is fine-tuned solely on the original human-authored dataset \(D_0\).
-- For **\(i \geq 2\)**, each model \(M_i\) is fine-tuned on synthetic data \(D_{i-1}\) generated by its predecessor \(M_{i-1}\).
-- After generation, an optional filter \(f_{\text{filter}}\) may be applied to \(D_{\text{train}}\), for example based on:
+- $M_1$ is fine-tuned solely on the original human-authored dataset $D_0$.
+- For $i \geq 2$, each model $M_i$ is fine-tuned on synthetic data $D_{i-1}$ generated by its predecessor $M_{i-1}$.
+- After generation, an optional filter $f_\text{filter}$ may be applied to $D_\text{train}$, for example based on:
   - quality
   - length
   - diversity

@@ -151,7 +151,7 @@ if __name__ == "__main__":
     else:
         train_ds = load_from_disk(non_test_paths[0])
 
-    size_pcts = [0.01, 0.05, 0.20, 1.00]   # D0 ⊂ D1 ⊂ D2 ⊂ D3
+    size_pcts = [0.1, 0.2, 0.5, 1.0]   # D0 ⊂ D1 ⊂ D2 ⊂ D3
     sizes = sorted(set(max(1, round(p * len(train_ds))) for p in size_pcts))
 
     subsets = create_nested_subdatasets(train_ds, sizes)
