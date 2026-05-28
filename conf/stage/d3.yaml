@@ -7,6 +7,7 @@ paths:
   train_data: "./datasets/base/w_D3"
 training:
   num_epochs: 1
+
 eval:
   steps: 5000
-save_strategy: "steps"
+  save_strategy: "steps"

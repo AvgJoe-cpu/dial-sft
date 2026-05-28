@@ -12,29 +12,29 @@ def main(cfg: DictConfig) -> None:
 
     training_cfg = TrainingConfig(
         # paths
-        TRAIN_DATA_LOAD_PATH=cfg.TRAIN_DATA_LOAD_PATH,
-        TEST_DATA_LOAD_PATH=cfg.TEST_DATA_LOAD_PATH,
-        TRAIN_MODEL_LOAD_PATH=cfg.TRAIN_MODEL_LOAD_PATH,
-        TRAIN_MODEL_SAVE_PATH=f"{cfg.TRAIN_MODEL_SAVE_PATH}/{override_dirname}",
+        TRAIN_DATA_LOAD_PATH=cfg.paths.train_data,
+        TEST_DATA_LOAD_PATH=cfg.paths.test_data,
+        TRAIN_MODEL_LOAD_PATH=cfg.paths.model_load,
+        TRAIN_MODEL_SAVE_PATH=f"{cfg.paths.model_save}/{override_dirname}",
         # dataset
-        num_train_samples=cfg.num_train_samples,
-        num_test_samples=cfg.num_test_samples,
-        num_workers=cfg.num_workers,
-        max_length=cfg.max_length,
+        num_train_samples=cfg.dataset.get("num_train_samples", -1),
+        num_test_samples=cfg.dataset.num_test_samples,
+        num_workers=cfg.dataset.num_workers,
+        max_length=cfg.dataset.max_length,
         # training
-        num_epochs=cfg.num_epochs,
-        batch_size=cfg.batch_size,
-        learning_rate=cfg.learning_rate,
-        logging_steps=cfg.logging_steps,
-        
+        num_epochs=cfg.training.num_epochs,
+        batch_size=cfg.training.batch_size,
+        learning_rate=cfg.training.learning_rate,
+        logging_steps=cfg.training.logging_steps,
+        # model (MDLM)
         scheduler=cfg.model.scheduler,
         loss_weight_type=cfg.model.loss_weight_type,
-        time_epsilon=cfg.model.time_epsilon,        
+        time_epsilon=cfg.model.time_epsilon,
         # eval
-        eval_strategy=cfg.eval_strategy,
-        eval_steps=cfg.eval_steps,
-        save_strategy=cfg.save_strategy,
-        report_to=list(cfg.report_to),
+        eval_strategy=cfg.eval.strategy,
+        eval_steps=cfg.eval.steps,
+        save_strategy=cfg.eval.save_strategy,
+        report_to=list(cfg.eval.report_to),
     )
 
     run_training(training_cfg)

@@ -73,13 +73,15 @@ def run_training(config: TrainingConfig = TrainingConfig()):
     model, tokenizer = load_model(local_dir=config.TRAIN_MODEL_LOAD_PATH)
 
     train_ds = load_from_disk(config.TRAIN_DATA_LOAD_PATH)
-    train_ds = train_ds.select(range(config.num_train_samples))
+    if config.num_train_samples and config.num_train_samples > 0:
+        train_ds = train_ds.select(range(min(config.num_train_samples, len(train_ds))))
 
     train_ds = train_ds.map(format_to_messages).map(_sft_map_fn)
     train_ds = train_ds.select_columns(["input_ids", "labels", "assistant_mask"])
 
     test_ds = load_from_disk(config.TEST_DATA_LOAD_PATH)
-    test_ds = test_ds.select(range(config.num_test_samples))
+    if config.num_test_samples and config.num_test_samples > 0:
+        test_ds = test_ds.select(range(min(config.num_test_samples, len(test_ds))))
     
     test_ds = test_ds.map(format_to_messages).map(_sft_map_fn)
     test_ds = test_ds.select_columns(["input_ids", "labels", "assistant_mask"])

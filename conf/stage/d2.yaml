@@ -9,4 +9,4 @@ training:
   num_epochs: 1
 eval:
   steps: 2000
-eval_strategy_save: "steps"
+  save_strategy: "steps"
