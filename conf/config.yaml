@@ -1,0 +1,25 @@
+# data & model paths
+TRAIN_DATA_LOAD_PATH: "./datasets/base/writingprompts_train"
+TEST_DATA_LOAD_PATH:  "./datasets/base/writingprompts_test"
+TRAIN_MODEL_LOAD_PATH: "./weights/base"
+TRAIN_MODEL_SAVE_PATH: "./weights/checkpoints"
+
+# dataset
+num_samples: 10
+num_workers: 4
+max_length: 512
+
+# training
+num_epochs: 1
+batch_size: 8
+learning_rate: 2e-5
+logging_steps: 10
+time_epsilon: 0.001
+loss_weight_type: "uniform"
+
+# reporting & checkpointing
+eval_strategy: "steps"
+eval_steps: 50
+save_strategy: "no"
+report_to:
+  - "tensorboard"

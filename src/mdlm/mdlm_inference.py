@@ -119,4 +119,3 @@ def run_inference_mdlm(config: InferenceConfig = InferenceConfig()):
         torch.cuda.empty_cache()
 
 
-#run_inference_mdlm()

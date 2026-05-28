@@ -35,3 +35,4 @@ htmlcov/
 *.safetensors
 *.ckpt
 *.pt
+multirun

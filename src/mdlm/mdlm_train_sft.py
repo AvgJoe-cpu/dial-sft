@@ -34,8 +34,9 @@ class TrainingConfig:
     loss_weight_type: str = "uniform"
 
     # --- reporting & checkpointing ---
-    eval_strategy: str = "epoch"
-    save_strategy: str = "epoch"
+    eval_strategy: str = "steps"
+    eval_steps: int = 50    
+    save_strategy: str = "no"
     report_to: list = field(default_factory=lambda: ["tensorboard"])
 
 
@@ -96,10 +97,13 @@ def run_training(config: TrainingConfig = TrainingConfig()):
         dataloader_num_workers=config.num_workers,
         logging_steps=config.logging_steps,
         eval_strategy=config.eval_strategy,
+        eval_steps=config.eval_steps,        
         save_strategy=config.save_strategy,
         report_to=config.report_to,
         batch_eval_metrics=True,
         remove_unused_columns=False,
+        bf16=True,                  
+
     )
     metric_computer = NLLPPLMetricComputer()
 
@@ -115,12 +119,10 @@ def run_training(config: TrainingConfig = TrainingConfig()):
     )
 
     trainer.train()
-    trainer.save_model()
+    #trainer.save_model()
     del trainer, args, collator, scheduler, train_ds, test_ds, model, tokenizer
 
     if torch.device.type == "cuda":
         torch.cuda.empty_cache()
     gc.collect()
 
-
-run_training()
