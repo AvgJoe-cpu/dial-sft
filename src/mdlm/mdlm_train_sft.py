@@ -21,9 +21,9 @@ class TrainingConfig:
     TRAIN_MODEL_SAVE_PATH: str = "./weights/checkpoints"
 
     # --- dataset ---
-    num_samples: int = 100
+    num_samples: int = 1000
     num_workers: int = 4
-    max_length: int = 256
+    max_length: int = 512
 
     # --- MDLMConfig / TrainingArguments contract ---
     num_epochs: int = 2
@@ -70,16 +70,14 @@ def run_training(config: TrainingConfig = TrainingConfig()):
     model, tokenizer = load_model(local_dir=config.TRAIN_MODEL_LOAD_PATH)
 
     train_ds = load_from_disk(config.TRAIN_DATA_LOAD_PATH)
-    train_ds = train_ds.select(range(config.num_samples)).rename_column(
-        "story", "completion"
-    )
+    train_ds = train_ds.select(range(config.num_samples))
+
     train_ds = train_ds.map(format_to_messages).map(_sft_map_fn)
     train_ds = train_ds.select_columns(["input_ids", "labels", "assistant_mask"])
 
     test_ds = load_from_disk(config.TEST_DATA_LOAD_PATH)
-    test_ds = test_ds.select(range(config.num_samples)).rename_column(
-        "story", "completion"
-    )
+    test_ds = test_ds.select(range(config.num_samples))
+    
     test_ds = test_ds.map(format_to_messages).map(_sft_map_fn)
     test_ds = test_ds.select_columns(["input_ids", "labels", "assistant_mask"])
 
