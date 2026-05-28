@@ -1,5 +1,7 @@
-from datasets import load_dataset, Dataset, load_from_disk
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from datasets import Dataset, load_dataset, load_from_disk
+
 
 def count_tokens_in_column_batched(batch, tokenizer=None, column_name: str = "story"):
     tokenized = tokenizer(batch[column_name], truncation=False, padding=False)
@@ -29,9 +31,9 @@ def process_and_save_datasets(
     print(f"Loading dataset: {dataset_name}")
     dd = load_dataset(dataset_name)
     splits = {
-        "train":      (dd["train"],      train_save_path),
+        "train": (dd["train"], train_save_path),
         "validation": (dd["validation"], eval_save_path),
-        "test":       (dd["test"],       test_save_path),
+        "test": (dd["test"], test_save_path),
     }
     del dd
     gc.collect()
@@ -46,11 +48,12 @@ def process_and_save_datasets(
 
     print("✓ All splits processed and saved!")
 
+
 if __name__ == "__main__":
-    TRAIN_OG_PATH       = "euclaise/writingprompts"
-    TRAIN_OG_SAVE_PATH  = "./datasets/base/writingprompts_train"
-    EVAL_OG_SAVE_PATH   = "./datasets/base/writingprompts_eval"
-    TEST_OG_SAVE_PATH   = "./datasets/base/writingprompts_test"
+    TRAIN_OG_PATH = "euclaise/writingprompts"
+    TRAIN_OG_SAVE_PATH = "./datasets/base/writingprompts_train"
+    EVAL_OG_SAVE_PATH = "./datasets/base/writingprompts_eval"
+    TEST_OG_SAVE_PATH = "./datasets/base/writingprompts_test"
 
     from src.ar.ar_baseline import setup_model_and_tokenizer
 
@@ -61,4 +64,4 @@ if __name__ == "__main__":
         train_save_path=TRAIN_OG_SAVE_PATH,
         eval_save_path=EVAL_OG_SAVE_PATH,
         test_save_path=TEST_OG_SAVE_PATH,
-    )    
+    )

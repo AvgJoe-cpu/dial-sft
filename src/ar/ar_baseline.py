@@ -2,13 +2,12 @@
 # standard - conversational
 # LM - prompt completion
 
-from trl import SFTConfig, SFTTrainer
-from datasets import load_dataset, Dataset, load_from_disk
-from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 from jinja2 import Template
+from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
+from trl import SFTConfig, SFTTrainer
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
+from datasets import Dataset, load_dataset, load_from_disk
 
 
 def setup_model_and_tokenizer(
@@ -42,7 +41,7 @@ def setup_model_and_tokenizer(
             "<|im_end|>",
             "<|user|>",
             "<|assistant|>",
-            "<|system|>"
+            "<|system|>",
         ]
     }
     tokenizer.add_special_tokens(special_tokens_dict)
@@ -52,14 +51,9 @@ def setup_model_and_tokenizer(
     tokenizer.padding_side = "right" if for_training else "left"
 
     model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        dtype=dtype,
-        device_map=device_map
+        model_name, dtype=dtype, device_map=device_map
     )
-    model.resize_token_embeddings(
-        len(tokenizer),
-        pad_to_multiple_of=64
-    )
+    model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=64)
     return model, tokenizer
 
 
@@ -87,9 +81,10 @@ def format_to_messages(example):
     return {
         "messages": [
             {"role": "user", "content": example["prompt"]},
-            {"role": "assistant", "content": example["completion"]}
+            {"role": "assistant", "content": example["completion"]},
         ]
     }
+
 
 def run_training(
     TRAIN_DATA_LOAD_PATH: str,
@@ -98,15 +93,15 @@ def run_training(
     num_samples: int = 10000,
     num_epochs: int = 4,
     batch_size: int = 64,
-    #is_local: bool = False,
+    # is_local: bool = False,
 ):
-    output_dir   = TRAIN_MODEL_SAVE_PATH
-    model_name   = TRAIN_MODEL_LOAD_PATH
+    output_dir = TRAIN_MODEL_SAVE_PATH
+    model_name = TRAIN_MODEL_LOAD_PATH
     dataset_path = TRAIN_DATA_LOAD_PATH
-    #if is_local:
+    # if is_local:
     #    print(f"Loading dataset from local disk: {dataset_path}")
     #    train_ds = Dataset.load_from_disk(dataset_path)
-    #else:
+    # else:
     #    print(f"Loading dataset from HuggingFace Hub: {dataset_path}")
     #    dd = load_dataset(dataset_path)
     #    train_ds = dd['train']
@@ -114,35 +109,32 @@ def run_training(
     train_ds = load_from_disk(dataset_path)
 
     print(f"Selecting {num_samples} samples and preprocessing...")
-    train_ds = train_ds.select(range(num_samples)).rename_column('story', 'completion')
-    train_ds = train_ds.map(add_prompt_fn) # NEW
+    train_ds = train_ds.select(range(num_samples)).rename_column("story", "completion")
+    train_ds = train_ds.map(add_prompt_fn)  # NEW
 
     train_dataset = train_ds.map(
-        format_to_messages,
-        remove_columns=train_ds.column_names
+        format_to_messages, remove_columns=train_ds.column_names
     )
     del train_ds
 
     print(f"Loading model: {model_name}")
-    model, tokenizer = setup_model_and_tokenizer(model_name=model_name, for_training=True)
+    model, tokenizer = setup_model_and_tokenizer(
+        model_name=model_name, for_training=True
+    )
 
     training_args = SFTConfig(
         push_to_hub=False,
         output_dir=output_dir,
         report_to="tensorboard",
         logging_dir=f"{output_dir}/tb_logs",
-
         bf16=True,
         optim="adamw_torch_fused",
-        use_liger_kernel=False, # False on mps 
-
+        use_liger_kernel=False,  # False on mps
         dataloader_num_workers=4,
         dataloader_pin_memory=True,
-
         num_train_epochs=num_epochs,
         per_device_train_batch_size=batch_size,
         logging_steps=10,
-
         assistant_only_loss=True,  # Loss ONLY on assistant messages
     )
 
@@ -160,11 +152,12 @@ def run_training(
     torch.cuda.empty_cache()
     del model, tokenizer, training_args, trainer, train_dataset
 
-#def tokenize_fn(example):
+
+# def tokenize_fn(example):
 #    tokenized = tokenizer.apply_chat_template([{"role": "user", "content": example["prompt"]}], tokenize=False, add_generation_prompt=True)
 #    return {"text": tokenized}
 
-#def tokenize_fn(batch):
+# def tokenize_fn(batch):
 #    conversations = [[{"role": "user", "content": prompt}] for prompt in batch["prompt"]]
 #    tokenized = tokenizer.apply_chat_template(conversations, tokenize=False, add_generation_prompt=True)
 #    return {"text": tokenized}
@@ -181,13 +174,12 @@ def add_prompt_inference(example):
     return example
 
 
-
 def generate_ar(batch, tokenizer=None, model=None, gen_config=None):
-    messages_list = [[{"role": "user", "content": prompt}] for prompt in batch["prompt"]]
+    messages_list = [
+        [{"role": "user", "content": prompt}] for prompt in batch["prompt"]
+    ]
     formatted_texts = tokenizer.apply_chat_template(
-        messages_list,
-        tokenize=False,
-        add_generation_prompt=True
+        messages_list, tokenize=False, add_generation_prompt=True
     )
 
     model_inputs = tokenizer(
@@ -195,7 +187,7 @@ def generate_ar(batch, tokenizer=None, model=None, gen_config=None):
         return_tensors="pt",
         padding=True,
         truncation=True,
-        max_length=512
+        max_length=512,
     ).to(model.device)
 
     generated_ids = model.generate(
@@ -204,15 +196,23 @@ def generate_ar(batch, tokenizer=None, model=None, gen_config=None):
     )
 
     results = tokenizer.batch_decode(
-        [generated_ids[i][len(model_inputs.input_ids[i]):].tolist() for i in range(len(generated_ids))],
-        skip_special_tokens=True
+        [
+            generated_ids[i][len(model_inputs.input_ids[i]) :].tolist()
+            for i in range(len(generated_ids))
+        ],
+        skip_special_tokens=True,
     )
 
     del model_inputs, generated_ids, formatted_texts, messages_list
     return {"story": results}
 
 
-def run_inference(INFER_MODEL_LOAD_PATH, INFER_DATA_LOAD_PATH, INFER_DATA_SAVE_PATH, num_samples: int=10000):
+def run_inference(
+    INFER_MODEL_LOAD_PATH,
+    INFER_DATA_LOAD_PATH,
+    INFER_DATA_SAVE_PATH,
+    num_samples: int = 10000,
+):
     MODEL_NAME = INFER_MODEL_LOAD_PATH
     INFERENCE_LOAD_PATH = INFER_DATA_LOAD_PATH
     SAVE_PATH = INFER_DATA_SAVE_PATH
@@ -222,7 +222,9 @@ def run_inference(INFER_MODEL_LOAD_PATH, INFER_DATA_LOAD_PATH, INFER_DATA_SAVE_P
     del dataset
     ds = ds.select(range(num_samples))
 
-    model, tokenizer = setup_model_and_tokenizer(model_name=MODEL_NAME, for_training=False)    # NEW
+    model, tokenizer = setup_model_and_tokenizer(
+        model_name=MODEL_NAME, for_training=False
+    )  # NEW
     tokenizer.padding_side = "left"
 
     config = GenerationConfig(
@@ -240,14 +242,14 @@ def run_inference(INFER_MODEL_LOAD_PATH, INFER_DATA_LOAD_PATH, INFER_DATA_SAVE_P
     ds = ds.map(
         add_prompt_inference,
     )
-    #ds = ds.map(
+    # ds = ds.map(
     #    tokenize_fn,
     #    batched=True,
     #    batch_size=32,
     #    fn_kwargs={
     #        "tokenizer": tokenizer,
     #    }
-    #)
+    # )
 
     ds = ds.map(
         generate_ar,
@@ -258,7 +260,7 @@ def run_inference(INFER_MODEL_LOAD_PATH, INFER_DATA_LOAD_PATH, INFER_DATA_SAVE_P
             "model": model,
             "gen_config": config,
         },
-    #    remove_columns=["text"]
+        #    remove_columns=["text"]
     )
     ds.save_to_disk(SAVE_PATH)
     torch.cuda.empty_cache()
@@ -269,10 +271,10 @@ if __name__ == "__main__":
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        TRAIN_OG_PATH       = "euclaise/writingprompts"
-        TRAIN_OG_SAVE_PATH  = f"{tmp}/train_ds_og"
-        EVAL_OG_SAVE_PATH   = f"{tmp}/eval_ds_og"
-        TEST_OG_SAVE_PATH   = f"{tmp}/test_ds_og"
+        TRAIN_OG_PATH = "euclaise/writingprompts"
+        TRAIN_OG_SAVE_PATH = f"{tmp}/train_ds_og"
+        EVAL_OG_SAVE_PATH = f"{tmp}/eval_ds_og"
+        TEST_OG_SAVE_PATH = f"{tmp}/test_ds_og"
 
         _, tokenizer = setup_model_and_tokenizer(model_name="EleutherAI/pythia-70m")
         process_and_save_datasets(
@@ -286,12 +288,12 @@ if __name__ == "__main__":
 
         CONFIG_DICT = {
             "ROUND1": {
-                "TRAIN_DATA_LOAD_PATH":  TRAIN_OG_SAVE_PATH,
+                "TRAIN_DATA_LOAD_PATH": TRAIN_OG_SAVE_PATH,
                 "TRAIN_MODEL_LOAD_PATH": "EleutherAI/pythia-70m",
                 "TRAIN_MODEL_SAVE_PATH": f"{tmp}/sft_output",
                 "INFER_MODEL_LOAD_PATH": f"{tmp}/sft_output",
-                "INFER_DATA_LOAD_PATH":  TRAIN_OG_SAVE_PATH,
-                "INFER_DATA_SAVE_PATH":  f"{tmp}/local_arrow_dataset",
+                "INFER_DATA_LOAD_PATH": TRAIN_OG_SAVE_PATH,
+                "INFER_DATA_SAVE_PATH": f"{tmp}/local_arrow_dataset",
             },
         }
 
@@ -300,12 +302,12 @@ if __name__ == "__main__":
             print(f"STARTING {round_name}")
             print(f"{'='*80}\n")
 
-            train_data_load_path  = config["TRAIN_DATA_LOAD_PATH"]
+            train_data_load_path = config["TRAIN_DATA_LOAD_PATH"]
             train_model_load_path = config["TRAIN_MODEL_LOAD_PATH"]
             train_model_save_path = config["TRAIN_MODEL_SAVE_PATH"]
             infer_model_load_path = config["INFER_MODEL_LOAD_PATH"]
-            infer_data_load_path  = config["INFER_DATA_LOAD_PATH"]
-            infer_data_save_path  = config["INFER_DATA_SAVE_PATH"]
+            infer_data_load_path = config["INFER_DATA_LOAD_PATH"]
+            infer_data_save_path = config["INFER_DATA_SAVE_PATH"]
 
             print(f"Training data:        {train_data_load_path}")
             print(f"Training model:       {train_model_load_path}")

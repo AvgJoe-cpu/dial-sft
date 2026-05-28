@@ -1,42 +1,52 @@
-from src.mdlm.load_model import load_model
-from src.mdlm.mdlm_helpers.mdlm_scheduler import BaseAlphaScheduler, LinearAlphaScheduler
-from src.mdlm.mdlm_helpers.mdlm_trainer_sft import SFTCollator, MDLMConfig, MDLMSFTTrainer, NLLPPLMetricComputer
- 
+import gc
 from dataclasses import dataclass, field
+
+import torch
+
 from datasets import load_from_disk
-import gc, torch
+from src.mdlm.load_model import load_model
+from src.mdlm.mdlm_helpers.mdlm_scheduler import (BaseAlphaScheduler,
+                                                  LinearAlphaScheduler)
+from src.mdlm.mdlm_helpers.mdlm_trainer_sft import (MDLMConfig, MDLMSFTTrainer,
+                                                    NLLPPLMetricComputer,
+                                                    SFTCollator)
 
 
 @dataclass
 class TrainingConfig:
     # --- data & model paths ---
-    TRAIN_DATA_LOAD_PATH:  str = "./datasets/base/writingprompts_train"
-    TEST_DATA_LOAD_PATH:   str = "./datasets/base/writingprompts_test"
+    TRAIN_DATA_LOAD_PATH: str = "./datasets/base/writingprompts_train"
+    TEST_DATA_LOAD_PATH: str = "./datasets/base/writingprompts_test"
     TRAIN_MODEL_LOAD_PATH: str = "./weights/base"
     TRAIN_MODEL_SAVE_PATH: str = "./weights/checkpoints"
 
     # --- dataset ---
     num_samples: int = 100
-    num_workers:int  = 4
-    max_length:int = 256
+    num_workers: int = 4
+    max_length: int = 256
 
     # --- MDLMConfig / TrainingArguments contract ---
-    num_epochs:            int   = 2
-    batch_size:            int   = 16
-    learning_rate:         float = 2e-5
-    logging_steps:         int   = 1
-    time_epsilon:          float = 0.001
-    loss_weight_type:      str   = "uniform"
+    num_epochs: int = 2
+    batch_size: int = 16
+    learning_rate: float = 2e-5
+    logging_steps: int = 1
+    time_epsilon: float = 0.001
+    loss_weight_type: str = "uniform"
 
     # --- reporting & checkpointing ---
-    eval_strategy:         str   = "epoch"
-    save_strategy:         str   = "epoch"
-    report_to:             list  = field(default_factory=lambda: ["tensorboard"])
+    eval_strategy: str = "epoch"
+    save_strategy: str = "epoch"
+    report_to: list = field(default_factory=lambda: ["tensorboard"])
 
 
-def run_training(config: TrainingConfig = TrainingConfig()):    
+def run_training(config: TrainingConfig = TrainingConfig()):
     def format_to_messages(example):
-        return {"messages": [{"role": "user", "content": example["prompt"]}, {"role": "assistant", "content": example["completion"]}]}
+        return {
+            "messages": [
+                {"role": "user", "content": example["prompt"]},
+                {"role": "assistant", "content": example["completion"]},
+            ]
+        }
 
     def _sft_map_fn(example, max_length=config.max_length):
         enc = tokenizer.apply_chat_template(
@@ -48,20 +58,28 @@ def run_training(config: TrainingConfig = TrainingConfig()):
             max_length=max_length,
             truncation=True,
         )
-        input_ids      = enc["input_ids"]
+        input_ids = enc["input_ids"]
         assistant_mask = enc["assistant_masks"]
         labels = [tok if m == 1 else -100 for tok, m in zip(input_ids, assistant_mask)]
-        return {"input_ids": input_ids, "labels": labels, "assistant_mask": assistant_mask}    
+        return {
+            "input_ids": input_ids,
+            "labels": labels,
+            "assistant_mask": assistant_mask,
+        }
 
     model, tokenizer = load_model(local_dir=config.TRAIN_MODEL_LOAD_PATH)
 
     train_ds = load_from_disk(config.TRAIN_DATA_LOAD_PATH)
-    train_ds = train_ds.select(range(config.num_samples)).rename_column('story', 'completion')    
+    train_ds = train_ds.select(range(config.num_samples)).rename_column(
+        "story", "completion"
+    )
     train_ds = train_ds.map(format_to_messages).map(_sft_map_fn)
     train_ds = train_ds.select_columns(["input_ids", "labels", "assistant_mask"])
 
     test_ds = load_from_disk(config.TEST_DATA_LOAD_PATH)
-    test_ds = test_ds.select(range(config.num_samples)).rename_column('story', 'completion')    
+    test_ds = test_ds.select(range(config.num_samples)).rename_column(
+        "story", "completion"
+    )
     test_ds = test_ds.map(format_to_messages).map(_sft_map_fn)
     test_ds = test_ds.select_columns(["input_ids", "labels", "assistant_mask"])
 
@@ -70,18 +88,14 @@ def run_training(config: TrainingConfig = TrainingConfig()):
 
     args = MDLMConfig(
         push_to_hub=False,
-
         output_dir=config.TRAIN_MODEL_SAVE_PATH,
         num_train_epochs=config.num_epochs,
-        per_device_train_batch_size =config.batch_size,
-        per_device_eval_batch_size  =config.batch_size,
-
-        learning_rate   =config.learning_rate,
-        time_epsilon    =config.time_epsilon,
+        per_device_train_batch_size=config.batch_size,
+        per_device_eval_batch_size=config.batch_size,
+        learning_rate=config.learning_rate,
+        time_epsilon=config.time_epsilon,
         loss_weight_type=config.loss_weight_type,
-
         dataloader_num_workers=config.num_workers,
-
         logging_steps=config.logging_steps,
         eval_strategy=config.eval_strategy,
         save_strategy=config.save_strategy,
@@ -97,9 +111,9 @@ def run_training(config: TrainingConfig = TrainingConfig()):
         train_dataset=train_ds,
         eval_dataset=test_ds,
         processing_class=tokenizer,
-        data_collator=collator,        
+        data_collator=collator,
         scheduler=scheduler,
-        compute_metrics=metric_computer,        
+        compute_metrics=metric_computer,
     )
 
     trainer.train()
@@ -107,7 +121,8 @@ def run_training(config: TrainingConfig = TrainingConfig()):
     del trainer, args, collator, scheduler, train_ds, test_ds, model, tokenizer
 
     if torch.device.type == "cuda":
-        torch.cuda.empty_cache()    
+        torch.cuda.empty_cache()
     gc.collect()
+
 
 run_training()

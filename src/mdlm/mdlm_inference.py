@@ -1,33 +1,39 @@
-from src.mdlm.load_model import load_model
-from src.mdlm.mdlm_helpers.mdlm_scheduler import BaseAlphaScheduler, LinearAlphaScheduler
-from src.mdlm.mdlm_helpers.mdlm_sampler_sft import MDLMSamplerConfig, MinimalMDLMSampler, SFTMixinBatchedVarlen
 import dataclasses
+import gc
 from dataclasses import dataclass
-import gc, torch
+
+import torch
+
 from datasets import load_from_disk
+from src.mdlm.load_model import load_model
+from src.mdlm.mdlm_helpers.mdlm_sampler_sft import (MDLMSamplerConfig,
+                                                    MinimalMDLMSampler,
+                                                    SFTMixinBatchedVarlen)
+from src.mdlm.mdlm_helpers.mdlm_scheduler import (BaseAlphaScheduler,
+                                                  LinearAlphaScheduler)
+
 
 @dataclass
 class InferenceConfig:
     # --- data & model paths ---
-    INFERENCE_LOAD_PATH:   str = "./datasets/base/writingprompts_test"
-    INFERENCE_SAVE_PATH:   str = "./datasets/checkpoints/mdlm_generations"
-    INFERENCE_MODEL_PATH:  str = "./weights/base"
+    INFERENCE_LOAD_PATH: str = "./datasets/base/writingprompts_test"
+    INFERENCE_SAVE_PATH: str = "./datasets/checkpoints/mdlm_generations"
+    INFERENCE_MODEL_PATH: str = "./weights/base"
 
     # --- dataset ---
-    num_samples:           int = 10
-    batch_size:            int = 2
+    num_samples: int = 10
+    batch_size: int = 2
 
     # --- MDLMSamplerConfig contract ---
-    response_length:       int = 20
-    num_steps:             int = 20
-
+    response_length: int = 20
+    num_steps: int = 20
 
 
 def generate_mdlm(
     batch,
     tokenizer=None,
     model=None,
-    sampler=None,                               
+    sampler=None,
     config: MDLMSamplerConfig = MDLMSamplerConfig(),
 ):
     messages_list = [[{"role": "user", "content": p}] for p in batch["prompt"]]
@@ -41,25 +47,25 @@ def generate_mdlm(
         padding=True,
         truncation=True,
     )
-    prompt_ids = encoded["input_ids"].to(model.device)        # [B, P_max]
-    attn       = encoded["attention_mask"].to(model.device)   # [B, P_max], 1=real
-    prompt_lens = attn.sum(dim=1).long()                       # [B]  [VARLEN]
+    prompt_ids = encoded["input_ids"].to(model.device)  # [B, P_max]
+    attn = encoded["attention_mask"].to(model.device)  # [B, P_max], 1=real
+    prompt_lens = attn.sum(dim=1).long()  # [B]  [VARLEN]
 
     pad_id = tokenizer.pad_token_id
     assert pad_id is not None, (
         "tokenizer has no pad_token_id; set tokenizer.pad_token = tokenizer.eos_token "
         "or similar before generation."
     )
-    assert pad_id != tokenizer.mask_token_id, (
-        "tokenizer.pad_token_id == mask_token_id; SUBS would treat pad as response."
-    )
+    assert (
+        pad_id != tokenizer.mask_token_id
+    ), "tokenizer.pad_token_id == mask_token_id; SUBS would treat pad as response."
 
     out = sampler.sample_sft(
         prompt_ids,
-        prompt_lens=prompt_lens,                              # [VARLEN]
-        pad_token_id=pad_id,                                  # [VARLEN]
+        prompt_lens=prompt_lens,  # [VARLEN]
+        pad_token_id=pad_id,  # [VARLEN]
         **dataclasses.asdict(config),
-    )                                                          # [B, P_max + R]
+    )  # [B, P_max + R]
 
     # [VARLEN] per-row response slice: response_b = out[b, P_b : P_b + R]
     R = config.response_length
@@ -86,7 +92,9 @@ def run_inference_mdlm(config: InferenceConfig = InferenceConfig()):
         scheduler=LinearAlphaScheduler(),
         mask_index=tokenizer.mask_token_id,
     )
-    sampler.sample_sft = SFTMixinBatchedVarlen.sample_sft.__get__(sampler, type(sampler))
+    sampler.sample_sft = SFTMixinBatchedVarlen.sample_sft.__get__(
+        sampler, type(sampler)
+    )
 
     ds = load_from_disk(config.INFERENCE_LOAD_PATH)
     ds = ds.select(range(config.num_samples))
@@ -97,9 +105,9 @@ def run_inference_mdlm(config: InferenceConfig = InferenceConfig()):
         batch_size=config.batch_size,
         fn_kwargs={
             "tokenizer": tokenizer,
-            "model":     model,
-            "sampler":   sampler,
-            "config":    sampler_config,
+            "model": model,
+            "sampler": sampler,
+            "config": sampler_config,
         },
     )
 
@@ -109,6 +117,6 @@ def run_inference_mdlm(config: InferenceConfig = InferenceConfig()):
     gc.collect()
     if torch.device.type == "cuda":
         torch.cuda.empty_cache()
-    
+
 
 run_inference_mdlm()

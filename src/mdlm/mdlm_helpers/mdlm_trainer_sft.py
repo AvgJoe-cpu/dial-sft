@@ -1,23 +1,24 @@
-from src.mdlm.mdlm_helpers.mdlm_scheduler import LinearAlphaScheduler, CosineAlphaScheduler, BaseAlphaScheduler
-
-import math, numpy as np
-from typing import Optional, Any, Dict
+import math
 from dataclasses import dataclass
-import torch 
-import torch.nn.functional as F 
-from transformers import (
-    Trainer,
-    TrainingArguments,
-    EvalPrediction,
-)
+from typing import Any, Dict, Optional
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+from transformers import EvalPrediction, Trainer, TrainingArguments
+
+from src.mdlm.mdlm_helpers.mdlm_scheduler import (BaseAlphaScheduler,
+                                                  CosineAlphaScheduler,
+                                                  LinearAlphaScheduler)
+
 
 @dataclass
 class SFTCollator:
     pad_token_id: int
 
     FILL = {
-        "input_ids":      None,    # filled at __post_init__-ish time below
-        "labels":         -100,
+        "input_ids": None,  # filled at __post_init__-ish time below
+        "labels": -100,
         "attention_mask": 0,
         "assistant_mask": 0,
     }
@@ -38,11 +39,10 @@ class SFTCollator:
         out: dict[str, torch.Tensor] = {}
         for k in keys:
             pad_val = fill.get(k, 0)
-            padded = [
-                f[k] + [pad_val] * (max_len - len(f[k])) for f in features
-            ]
+            padded = [f[k] + [pad_val] * (max_len - len(f[k])) for f in features]
             out[k] = torch.tensor(padded, dtype=torch.long)
         return out
+
 
 @dataclass
 class MDLMConfig(TrainingArguments):
@@ -56,9 +56,7 @@ class MDLMConfig(TrainingArguments):
         super().__post_init__()
 
         if not (0.0 < self.time_epsilon < 1.0):
-            raise ValueError(
-                f"time_epsilon must be in (0, 1), got {self.time_epsilon}"
-            )
+            raise ValueError(f"time_epsilon must be in (0, 1), got {self.time_epsilon}")
         if self.loss_weight_type not in ("scheduler", "uniform"):
             raise ValueError(
                 f"loss_weight_type must be 'scheduler' or 'uniform', "
@@ -69,10 +67,10 @@ class MDLMConfig(TrainingArguments):
                 "MDLMConfig requires batch_eval_metrics=True for per-token "
                 "NLL accumulation."
             )
-        
 
-#------------------------------------------------------------------        
-# REWRITE OF THE METRICS 
+
+# ------------------------------------------------------------------
+# REWRITE OF THE METRICS
 class NLLPPLMetricComputer:
     def __init__(self):
         self.reset()
@@ -81,12 +79,14 @@ class NLLPPLMetricComputer:
         self.sum_nll = 0.0
         self.sum_w = 0.0
 
-    def __call__(self, eval_pred: EvalPrediction, compute_result: bool) -> Dict[str, float]:
+    def __call__(
+        self, eval_pred: EvalPrediction, compute_result: bool
+    ) -> Dict[str, float]:
         token_nll = np.asarray(eval_pred.predictions.cpu(), dtype=np.float64)
-        weight    = np.asarray(eval_pred.label_ids.cpu(), dtype=np.float64)
-        
+        weight = np.asarray(eval_pred.label_ids.cpu(), dtype=np.float64)
+
         self.sum_nll += float(token_nll.sum())
-        self.sum_w   += float(weight.sum())
+        self.sum_w += float(weight.sum())
 
         if not compute_result:
             return {}
@@ -95,7 +95,8 @@ class NLLPPLMetricComputer:
         ppl = math.exp(mean_nll)
         self.reset()
         return {"nll": mean_nll, "ppl": ppl}
-            
+
+
 class MDLMSFTTrainer(Trainer):
     def __init__(
         self,
@@ -107,14 +108,18 @@ class MDLMSFTTrainer(Trainer):
         self.model_accepts_loss_kwargs = False
 
         cfg: "MDLMConfig" = self.args
-        self.scheduler        = scheduler if scheduler is not None else LinearAlphaScheduler()  # noqa: F821
-        self.time_epsilon     = cfg.time_epsilon
+        self.scheduler = (
+            scheduler if scheduler is not None else LinearAlphaScheduler()
+        )  # noqa: F821
+        self.time_epsilon = cfg.time_epsilon
         self.loss_weight_type = cfg.loss_weight_type
 
         # --- tokenizer invariants (same as pretraining trainer) -------------
         tok = self.processing_class
         if tok is None:
-            raise ValueError("MDLMSFTTrainer requires a tokenizer via `processing_class`.")
+            raise ValueError(
+                "MDLMSFTTrainer requires a tokenizer via `processing_class`."
+            )
         if getattr(tok, "padding_side", None) != "right":
             raise ValueError(f"padding_side must be 'right', got {tok.padding_side!r}.")
         if getattr(tok, "mask_token_id", None) is None:
@@ -137,7 +142,9 @@ class MDLMSFTTrainer(Trainer):
             )
 
     # ------------------------------------------------------------------
-    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+    def compute_loss(
+        self, model, inputs, return_outputs=False, num_items_in_batch=None
+    ):
         loss, outputs, _, _ = self._sft_forward(model, inputs)
         return (loss, outputs) if return_outputs else loss
 
@@ -147,7 +154,7 @@ class MDLMSFTTrainer(Trainer):
         if prediction_loss_only:
             return (loss.detach(), None, None)
         predictions = token_nll.detach().contiguous()
-        label_ids   = maskable_mask.to(predictions.dtype).detach().contiguous()
+        label_ids = maskable_mask.to(predictions.dtype).detach().contiguous()
         return (loss.detach(), predictions, label_ids)
 
     def predict(self, *args, **kwargs):
@@ -158,7 +165,9 @@ class MDLMSFTTrainer(Trainer):
 
     # ------------------------------------------------------------------
     @staticmethod
-    def _derive_maskable_mask(inputs: dict[str, torch.Tensor], labels: torch.Tensor) -> torch.Tensor:
+    def _derive_maskable_mask(
+        inputs: dict[str, torch.Tensor], labels: torch.Tensor
+    ) -> torch.Tensor:
         """
         Prefer the explicit `assistant_mask` carried by the SFT pipeline;
         fall back to `labels != -100` (equivalent post-collation).
@@ -168,10 +177,10 @@ class MDLMSFTTrainer(Trainer):
         return labels != -100
 
     def _sft_forward(self, model, inputs):
-        input_ids      = inputs["input_ids"]
-        labels         = inputs["labels"]
+        input_ids = inputs["input_ids"]
+        labels = inputs["labels"]
         attention_mask = inputs.get("attention_mask", None)
-        b, l           = input_ids.shape
+        b, l = input_ids.shape
 
         maskable_mask = self._derive_maskable_mask(inputs, labels)
 
@@ -201,10 +210,13 @@ class MDLMSFTTrainer(Trainer):
 
         # 5. weighted CE — scored only where we noised (subset of response)
         # Invariant from the data pipeline; cheap to assert in training.
-        assert (input_ids[maskable_mask] == labels[maskable_mask]).all(), \
-            "input_ids and labels disagree at response positions"
+        assert (
+            input_ids[maskable_mask] == labels[maskable_mask]
+        ).all(), "input_ids and labels disagree at response positions"
         token_nll = F.cross_entropy(
-            outputs.logits.transpose(1, 2), input_ids, reduction="none",
+            outputs.logits.transpose(1, 2),
+            input_ids,
+            reduction="none",
         )
         token_nll = token_nll * loss_weights * masked_mask.to(token_nll.dtype)
 
@@ -215,14 +227,13 @@ class MDLMSFTTrainer(Trainer):
         return loss, outputs, token_nll, maskable_mask
 
 
-
-
-
 if __name__ == "__main__":
 
-    from src.mdlm.load_model import load_model
-    from datasets import Dataset
     import tempfile
+
+    from datasets import Dataset
+    from src.mdlm.load_model import load_model
+
     with tempfile.TemporaryDirectory() as tmp:
         model, tokenizer = load_model(local_dir=tmp)
 
@@ -234,36 +245,45 @@ if __name__ == "__main__":
                 return_dict=True,
                 return_assistant_tokens_mask=True,
             )
-            input_ids      = enc["input_ids"]
+            input_ids = enc["input_ids"]
             assistant_mask = enc["assistant_masks"]
-            labels = [tok if m == 1 else -100
-                    for tok, m in zip(input_ids, assistant_mask)]
-            return {"input_ids": input_ids, "labels": labels, "assistant_mask": assistant_mask}    
+            labels = [
+                tok if m == 1 else -100 for tok, m in zip(input_ids, assistant_mask)
+            ]
+            return {
+                "input_ids": input_ids,
+                "labels": labels,
+                "assistant_mask": assistant_mask,
+            }
 
         TOY_ROWS = [
-            {"prompt": "What is 2 + 2?",                   "completion": "4"},
-            {"prompt": "Name a primary color.",             "completion": "Blue"},
-            {"prompt": "Capital of France?",                "completion": "Paris"},
-            {"prompt": "Say hello.",                        "completion": "Hello!"},
-            {"prompt": "Largest planet?",                   "completion": "Jupiter"},
-            {"prompt": "Opposite of hot?",                  "completion": "Cold"},
+            {"prompt": "What is 2 + 2?", "completion": "4"},
+            {"prompt": "Name a primary color.", "completion": "Blue"},
+            {"prompt": "Capital of France?", "completion": "Paris"},
+            {"prompt": "Say hello.", "completion": "Hello!"},
+            {"prompt": "Largest planet?", "completion": "Jupiter"},
+            {"prompt": "Opposite of hot?", "completion": "Cold"},
             {"prompt": "How many legs does a spider have?", "completion": "Eight"},
-            {"prompt": "Which gas do plants absorb?",       "completion": "Carbon dioxide"},
-            {"prompt": "Translate 'cat' to Spanish.",       "completion": "Gato"},
-            {"prompt": "Sun rises in the?",                 "completion": "East"},
+            {"prompt": "Which gas do plants absorb?", "completion": "Carbon dioxide"},
+            {"prompt": "Translate 'cat' to Spanish.", "completion": "Gato"},
+            {"prompt": "Sun rises in the?", "completion": "East"},
         ]
 
-        ds = Dataset.from_list(TOY_ROWS).map(lambda ex: {
-            "messages": [
-                {"role": "user",      "content": ex["prompt"]},
-                {"role": "assistant", "content": ex["completion"]},
-            ]
-        }, remove_columns=["prompt", "completion"])
+        ds = Dataset.from_list(TOY_ROWS).map(
+            lambda ex: {
+                "messages": [
+                    {"role": "user", "content": ex["prompt"]},
+                    {"role": "assistant", "content": ex["completion"]},
+                ]
+            },
+            remove_columns=["prompt", "completion"],
+        )
 
         ds = ds.map(_sft_map_fn, remove_columns=["messages"])
 
-        assert all(any(m == 1 for m in r["assistant_mask"]) for r in ds), \
-            "some row has zero response tokens — preprocessing or template is off"
+        assert all(
+            any(m == 1 for m in r["assistant_mask"]) for r in ds
+        ), "some row has zero response tokens — preprocessing or template is off"
 
         print(f"[ds]  rows                 : {len(ds)}")
         print(f"[ds]  example token lens   : {[len(r['input_ids']) for r in ds]}")
@@ -291,7 +311,7 @@ if __name__ == "__main__":
             train_dataset=ds,
             processing_class=tokenizer,
             data_collator=collator,
-            scheduler=scheduler
+            scheduler=scheduler,
         )
 
         trainer.train()

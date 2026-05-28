@@ -1,14 +1,14 @@
-from typing import Optional, Callable, Tuple, Union
 from dataclasses import dataclass
-import torch
 from types import SimpleNamespace
+from typing import Callable, Optional, Tuple, Union
+
+import torch
 
 
 def _sample_categorical(categorical_probs):
-    gumbel_norm = (
-        1e-10
-        - (torch.rand_like(categorical_probs) + 1e-10).log())
+    gumbel_norm = 1e-10 - (torch.rand_like(categorical_probs) + 1e-10).log()
     return (categorical_probs / gumbel_norm).argmax(dim=-1)
+
 
 @dataclass
 class MDLMSamplerConfig:
@@ -20,14 +20,22 @@ class MDLMSamplerConfig:
 
 
 class MinimalMDLMSampler:
-    def __init__(self, backbone, scheduler, mask_index,
-                 time_conditioning=False, neg_infinity=-1_000_000.0):
-        self.backbone       = backbone
-        self.scheduler      = scheduler
-        self.mask_index     = mask_index
+    def __init__(
+        self,
+        backbone,
+        scheduler,
+        mask_index,
+        time_conditioning=False,
+        neg_infinity=-1_000_000.0,
+    ):
+        self.backbone = backbone
+        self.scheduler = scheduler
+        self.mask_index = mask_index
         self.time_conditioning = time_conditioning
-        self.neg_infinity   = neg_infinity
-        self._attention_mask = None   # [VARLEN] set by sample_sft; None = attend everywhere
+        self.neg_infinity = neg_infinity
+        self._attention_mask = (
+            None  # [VARLEN] set by sample_sft; None = attend everywhere
+        )
 
     def forward(self, x, sigma):
         # [VARLEN] pick up the per-call mask if one was stashed; else attend everywhere
@@ -44,7 +52,7 @@ class MinimalMDLMSampler:
     def _subs_parameterization(self, logits, xt):
         logits[:, :, self.mask_index] += self.neg_infinity
         logits = logits - torch.logsumexp(logits, dim=-1, keepdim=True)
-        unmasked = (xt != self.mask_index)
+        unmasked = xt != self.mask_index
         logits[unmasked] = self.neg_infinity
         logits[unmasked, xt[unmasked]] = 0
         return logits
@@ -60,7 +68,7 @@ class MinimalMDLMSampler:
 
         if p_x0 is None:
             sigma = torch.zeros(x.shape[0], device=x.device)
-            p_x0  = self.forward(x, sigma).exp()          # log-probs → probs
+            p_x0 = self.forward(x, sigma).exp()  # log-probs → probs
 
         q_xs = p_x0 * (move_chance_t - move_chance_s)
         q_xs[:, :, self.mask_index] = move_chance_s[:, :, 0]
@@ -71,23 +79,22 @@ class MinimalMDLMSampler:
 
     # ── outer loop ────────────────────────────────────────────────────────────
     @torch.no_grad()
-    def sample(self, batch_size, seq_len, num_steps=10, eps=1e-5,
-               noise_removal=True):
+    def sample(self, batch_size, seq_len, num_steps=10, eps=1e-5, noise_removal=True):
         device = next(self.backbone.parameters()).device
 
         # prior: all masks
-        x = torch.full((batch_size, seq_len), self.mask_index,
-                       dtype=torch.long, device=device)
+        x = torch.full(
+            (batch_size, seq_len), self.mask_index, dtype=torch.long, device=device
+        )
 
         timesteps = torch.linspace(1, eps, num_steps + 1, device=device)
-        dt        = (1 - eps) / num_steps
+        dt = (1 - eps) / num_steps
         p_x0_cache = None
 
         for i in range(num_steps):
             t = timesteps[i] * torch.ones(batch_size, 1, device=device)
-            p_x0_cache, x_next = self._ddpm_caching_update(
-                x, t, dt, p_x0=p_x0_cache)
-            if not torch.allclose(x_next, x):   # cache invalid when canvas changes
+            p_x0_cache, x_next = self._ddpm_caching_update(x, t, dt, p_x0=p_x0_cache)
+            if not torch.allclose(x_next, x):  # cache invalid when canvas changes
                 p_x0_cache = None
             x = x_next
 
@@ -96,7 +103,6 @@ class MinimalMDLMSampler:
             x = self.forward(x, sigma).argmax(dim=-1)
 
         return x
-
 
 
 class SFTMixin:
@@ -114,7 +120,7 @@ class SFTMixin:
     @torch.no_grad()
     def sample_sft(
         self,
-        prompt_ids: torch.LongTensor,    # shape [P] or [1, P]
+        prompt_ids: torch.LongTensor,  # shape [P] or [1, P]
         response_length: int,
         num_steps: int = 512,
         eps: float = 1e-5,
@@ -148,10 +154,12 @@ class SFTMixin:
 
         # --- initial canvas: [prompt | MASK ... MASK] -----------------------
         response_init = torch.full(
-            (1, response_length), self.mask_index,
-            dtype=torch.long, device=device,
+            (1, response_length),
+            self.mask_index,
+            dtype=torch.long,
+            device=device,
         )
-        x = torch.cat([prompt_ids, response_init], dim=1)   # [1, L]
+        x = torch.cat([prompt_ids, response_init], dim=1)  # [1, L]
 
         # --- reverse loop (identical structure to .sample) ------------------
         timesteps = torch.linspace(1, eps, num_steps + 1, device=device)
@@ -161,7 +169,10 @@ class SFTMixin:
         for i in range(num_steps):
             t = timesteps[i] * torch.ones(1, 1, device=device)
             p_x0_cache, x_next = self._ddpm_caching_update(
-                x, t, dt, p_x0=p_x0_cache,
+                x,
+                t,
+                dt,
+                p_x0=p_x0_cache,
             )
             if not torch.equal(x_next, x):
                 p_x0_cache = None
@@ -172,7 +183,6 @@ class SFTMixin:
             x = self.forward(x, sigma).argmax(dim=-1)
 
         return x
-    
 
 
 # ----------------------------------------------------------------------------
@@ -187,6 +197,7 @@ class SFTMixin:
 #   * the "block fully un-masked -> stop forwarding" early-exit idea from
 #     bd3lms-family _ddpm_caching_update_ (MBD3LM fork, lines ~1030-1031)
 # ----------------------------------------------------------------------------
+
 
 class SFTMixinBatched:
     """
@@ -203,13 +214,13 @@ class SFTMixinBatched:
     @torch.no_grad()
     def sample_sft(
         self,
-        prompt_ids: torch.LongTensor,        # [P] or [B, P]
+        prompt_ids: torch.LongTensor,  # [P] or [B, P]
         response_length: int,
         num_steps: int = 512,
         eps: float = 1e-5,
         noise_removal: bool = True,
-        early_exit: bool = True,             # NEW: BD3LM-style done-check
-        return_nfes: bool = False,           # NEW: report NFEs used (cache-hits omitted)
+        early_exit: bool = True,  # NEW: BD3LM-style done-check
+        return_nfes: bool = False,  # NEW: report NFEs used (cache-hits omitted)
     ) -> Union[torch.LongTensor, Tuple[torch.LongTensor, int]]:
         """
         Batched SFT-style sampling with cache logic borrowed from
@@ -257,8 +268,10 @@ class SFTMixinBatched:
 
         # --- initial canvas [B, L] : [prompt | MASK ... MASK] ---------------
         response_init = torch.full(
-            (B, response_length), self.mask_index,
-            dtype=torch.long, device=device,
+            (B, response_length),
+            self.mask_index,
+            dtype=torch.long,
+            device=device,
         )
         x = torch.cat([prompt_ids, response_init], dim=1)
 
@@ -284,7 +297,10 @@ class SFTMixinBatched:
             t = timesteps[i] * torch.ones(B, 1, device=device)
             cache_was_hit = p_x0_cache is not None
             p_x0_cache, x_next = self._ddpm_caching_update(
-                x, t, dt, p_x0=p_x0_cache,
+                x,
+                t,
+                dt,
+                p_x0=p_x0_cache,
             )
             if not cache_was_hit:
                 nfes += 1
@@ -310,7 +326,7 @@ class SFTMixinBatched:
             nfes += 1
 
         return (x, nfes) if return_nfes else x
-    
+
 
 class SFTMixinBatchedVarlen:
     @torch.no_grad()
@@ -320,15 +336,15 @@ class SFTMixinBatchedVarlen:
         #   - 1-D LongTensor [P]                              (B=1, old)
         #   - 2-D LongTensor [B, P_max]   (+ prompt_lens)     (rectangular, padded)
         #   - list/tuple of 1-D LongTensors with possibly different lengths
-        prompt_ids,                                           # type relaxed: see above
+        prompt_ids,  # type relaxed: see above
         response_length: int,
         num_steps: int = 512,
         eps: float = 1e-5,
         noise_removal: bool = True,
         early_exit: bool = True,
         return_nfes: bool = False,
-        prompt_lens: Optional[torch.LongTensor] = None,       # [VARLEN] NEW
-        pad_token_id: Optional[int] = None,                   # [VARLEN] NEW (required iff lengths vary)
+        prompt_lens: Optional[torch.LongTensor] = None,  # [VARLEN] NEW
+        pad_token_id: Optional[int] = None,  # [VARLEN] NEW (required iff lengths vary)
     ) -> Union[torch.LongTensor, Tuple[torch.LongTensor, int]]:
         """
         Batched SFT-style sampling with variable-length prompts.
@@ -365,13 +381,15 @@ class SFTMixinBatchedVarlen:
             rows = [p.to(device=device, dtype=torch.long).flatten() for p in prompt_ids]
             B = len(rows)
             assert B > 0, "empty prompt list"
-            prompt_lens = torch.tensor([r.numel() for r in rows],
-                                       dtype=torch.long, device=device)
+            prompt_lens = torch.tensor(
+                [r.numel() for r in rows], dtype=torch.long, device=device
+            )
             P_max = int(prompt_lens.max().item())
             # right-pad with mask_index temporarily; we'll overwrite these
             # positions below when we build the canvas.
-            prompt_ids_2d = torch.full((B, P_max), MASK,
-                                       dtype=torch.long, device=device)
+            prompt_ids_2d = torch.full(
+                (B, P_max), MASK, dtype=torch.long, device=device
+            )
             for b, r in enumerate(rows):
                 prompt_ids_2d[b, : r.numel()] = r
         else:
@@ -385,15 +403,15 @@ class SFTMixinBatchedVarlen:
             B, P_max = prompt_ids_2d.shape
             if prompt_lens is None:
                 # back-compat: assume rectangular -> every row has length P_max
-                prompt_lens = torch.full((B,), P_max,
-                                         dtype=torch.long, device=device)
+                prompt_lens = torch.full((B,), P_max, dtype=torch.long, device=device)
             else:
                 prompt_lens = prompt_lens.to(device=device, dtype=torch.long)
-                assert prompt_lens.shape == (B,), (
-                    f"prompt_lens must be shape [{B}]; got {tuple(prompt_lens.shape)}"
-                )
-                assert (prompt_lens >= 0).all() and (prompt_lens <= P_max).all(), \
-                    "prompt_lens out of range"
+                assert prompt_lens.shape == (
+                    B,
+                ), f"prompt_lens must be shape [{B}]; got {tuple(prompt_lens.shape)}"
+                assert (prompt_lens >= 0).all() and (
+                    prompt_lens <= P_max
+                ).all(), "prompt_lens out of range"
 
         # ================================================================
         # [VARLEN] -- decide whether we need a pad token
@@ -417,12 +435,13 @@ class SFTMixinBatchedVarlen:
         # and to place the response slots correctly.
         # is_prompt[b, j] == True  iff  j < prompt_lens[b]
         # ================================================================
-        col = torch.arange(L, device=device)[None, :]                 # [1, L]
-        is_prompt   = col < prompt_lens[:, None]                      # [B, L]
+        col = torch.arange(L, device=device)[None, :]  # [1, L]
+        is_prompt = col < prompt_lens[:, None]  # [B, L]
         # response window: [P_b, P_b + R)
-        is_response = (col >= prompt_lens[:, None]) & \
-                      (col <  prompt_lens[:, None] + R)               # [B, L]
-        is_pad      = ~(is_prompt | is_response)                      # [B, L]
+        is_response = (col >= prompt_lens[:, None]) & (
+            col < prompt_lens[:, None] + R
+        )  # [B, L]
+        is_pad = ~(is_prompt | is_response)  # [B, L]
 
         # ================================================================
         # [VARLEN] -- relaxed SUBS guard: only check ACTUAL prompt
@@ -444,7 +463,7 @@ class SFTMixinBatchedVarlen:
         # ================================================================
         x = torch.full((B, L), MASK, dtype=torch.long, device=device)
         # place prompts in their per-row slots
-        prompt_cols = is_prompt[:, :P_max]                            # [B, P_max]
+        prompt_cols = is_prompt[:, :P_max]  # [B, P_max]
         x[:, :P_max][prompt_cols] = prompt_ids_2d[prompt_cols]
         # place pad sentinel in trailing columns
         if varlen:
@@ -469,8 +488,8 @@ class SFTMixinBatchedVarlen:
         # _ddpm_caching_update) picks it up automatically. try/finally
         # guarantees we restore prior state on any exit path.
         # ================================================================
-        attn_mask = (~is_pad).to(torch.long)              # [B, L]; 1=attend, 0=pad
-        prev_attention_mask = self._attention_mask        # save (may be None)
+        attn_mask = (~is_pad).to(torch.long)  # [B, L]; 1=attend, 0=pad
+        prev_attention_mask = self._attention_mask  # save (may be None)
         self._attention_mask = attn_mask
         try:
             # -------- prompt-KV warmup (may call self.forward internally)
@@ -489,7 +508,10 @@ class SFTMixinBatchedVarlen:
                 t = timesteps[i] * torch.ones(B, 1, device=device)
                 cache_was_hit = p_x0_cache is not None
                 p_x0_cache, x_next = self._ddpm_caching_update(
-                    x, t, dt, p_x0=p_x0_cache,
+                    x,
+                    t,
+                    dt,
+                    p_x0=p_x0_cache,
                 )
                 if not cache_was_hit:
                     nfes += 1
@@ -519,6 +541,7 @@ class SFTMixinBatchedVarlen:
             # pristine "attend everywhere" default again.
             self._attention_mask = prev_attention_mask
 
+
 # ============================================================================
 # Tests
 # ============================================================================
@@ -528,34 +551,36 @@ def _build_varlen_sampler(vocab_size=64, mask_index=63):
     class ToyBackbone(nn.Module):
         def __init__(self):
             super().__init__()
-            self.emb  = nn.Embedding(vocab_size, 32)
+            self.emb = nn.Embedding(vocab_size, 32)
             self.proj = nn.Linear(32, vocab_size)
             # spy slots — populated by .forward when called
             self.last_attention_mask = None
             self.last_input_ids = None
+
         def forward(self, input_ids, timesteps=None, attention_mask=None):
             self.last_attention_mask = attention_mask
             self.last_input_ids = input_ids
             h = self.emb(input_ids)
             return SimpleNamespace(logits=self.proj(h))
 
-    sampler = MinimalMDLMSampler(                # noqa: F821
+    sampler = MinimalMDLMSampler(  # noqa: F821
         backbone=ToyBackbone().eval(),
-        scheduler=LinearAlphaScheduler(),        # noqa: F821
+        scheduler=LinearAlphaScheduler(),  # noqa: F821
         mask_index=mask_index,
     )
     sampler.sample_sft = SFTMixinBatchedVarlen.sample_sft.__get__(
-        sampler, type(sampler))
+        sampler, type(sampler)
+    )
     return sampler, vocab_size, mask_index
 
 
 def _check_row(out_row, prompt, R, MASK, PAD, P_max):
     """One row-level invariant bundle, reused everywhere."""
     Pb = prompt.numel()
-    assert torch.equal(out_row[:Pb], prompt),              "prompt drift"
-    assert (out_row[Pb:Pb + R] != MASK).all(),             "MASK left in response"
-    if Pb + R < P_max + R:                                 # trailing pad region
-        assert (out_row[Pb + R:] == PAD).all(),            "pad clobbered"
+    assert torch.equal(out_row[:Pb], prompt), "prompt drift"
+    assert (out_row[Pb : Pb + R] != MASK).all(), "MASK left in response"
+    if Pb + R < P_max + R:  # trailing pad region
+        assert (out_row[Pb + R :] == PAD).all(), "pad clobbered"
 
 
 # ===========================================================================
@@ -565,14 +590,13 @@ def run_varlen_tests():
     torch.manual_seed(0)
     sampler, V, MASK = _build_varlen_sampler()
     PAD = 0
-    R   = 8
+    R = 8
 
     # -----------------------------------------------------------------------
     # 1. Equal-length back-compat: rectangular [B, P], no prompt_lens, no pad.
     #    Must NOT require pad_token_id (varlen=False short-circuit).
     # -----------------------------------------------------------------------
-    eq = torch.tensor([[1, 5, 9, 12, 7, 3],
-                       [2, 4, 8, 11, 6, 9]], dtype=torch.long)
+    eq = torch.tensor([[1, 5, 9, 12, 7, 3], [2, 4, 8, 11, 6, 9]], dtype=torch.long)
     out_eq = sampler.sample_sft(eq, response_length=R, num_steps=32)
     B_eq, P_eq = eq.shape
     assert out_eq.shape == (B_eq, P_eq + R)
@@ -584,22 +608,26 @@ def run_varlen_tests():
     # -----------------------------------------------------------------------
     # 2. List API + 2-D+lens API: equivalence under same seed.
     # -----------------------------------------------------------------------
-    ragged = [torch.tensor([1, 5, 9, 12, 7, 3], dtype=torch.long),
-              torch.tensor([2, 4, 8, 11],       dtype=torch.long),
-              torch.tensor([7],                  dtype=torch.long)]
-    B      = len(ragged)
-    P_max  = max(p.numel() for p in ragged)
-    lens   = torch.tensor([p.numel() for p in ragged], dtype=torch.long)
+    ragged = [
+        torch.tensor([1, 5, 9, 12, 7, 3], dtype=torch.long),
+        torch.tensor([2, 4, 8, 11], dtype=torch.long),
+        torch.tensor([7], dtype=torch.long),
+    ]
+    B = len(ragged)
+    P_max = max(p.numel() for p in ragged)
+    lens = torch.tensor([p.numel() for p in ragged], dtype=torch.long)
     padded = torch.full((B, P_max), PAD, dtype=torch.long)
     for b, p in enumerate(ragged):
-        padded[b, :p.numel()] = p
+        padded[b, : p.numel()] = p
 
     torch.manual_seed(0)
-    out_list = sampler.sample_sft(ragged, response_length=R, num_steps=64,
-                                  pad_token_id=PAD)
+    out_list = sampler.sample_sft(
+        ragged, response_length=R, num_steps=64, pad_token_id=PAD
+    )
     torch.manual_seed(0)
-    out_2d   = sampler.sample_sft(padded, response_length=R, num_steps=64,
-                                  prompt_lens=lens, pad_token_id=PAD)
+    out_2d = sampler.sample_sft(
+        padded, response_length=R, num_steps=64, prompt_lens=lens, pad_token_id=PAD
+    )
     assert torch.equal(out_list, out_2d), "list vs (2-D+lens) APIs disagree"
     assert out_list.shape == (B, P_max + R)
     for b, p in enumerate(ragged):
@@ -619,8 +647,7 @@ def run_varlen_tests():
     # 4. pad_token_id == mask_index must be rejected.
     # -----------------------------------------------------------------------
     try:
-        sampler.sample_sft(ragged, response_length=R, num_steps=4,
-                           pad_token_id=MASK)
+        sampler.sample_sft(ragged, response_length=R, num_steps=4, pad_token_id=MASK)
     except AssertionError:
         pass
     else:
@@ -631,46 +658,54 @@ def run_varlen_tests():
     #    but having mask_index appear *inside the padded trailing area* of
     #    a 2-D input is irrelevant because we never look there.
     # -----------------------------------------------------------------------
-    bad = padded.clone(); bad[0, 2] = MASK         # real prompt slot of row 0
+    bad = padded.clone()
+    bad[0, 2] = MASK  # real prompt slot of row 0
     try:
-        sampler.sample_sft(bad, response_length=R, num_steps=4,
-                           prompt_lens=lens, pad_token_id=PAD)
+        sampler.sample_sft(
+            bad, response_length=R, num_steps=4, prompt_lens=lens, pad_token_id=PAD
+        )
     except AssertionError:
         pass
     else:
         raise AssertionError("MASK in real prompt slot must raise")
 
     # mask_index *outside* row 1's real prompt (within its padding) is OK:
-    sneaky = padded.clone(); sneaky[1, lens[1]:] = MASK   # all pad cols of row 1
+    sneaky = padded.clone()
+    sneaky[1, lens[1] :] = MASK  # all pad cols of row 1
     # don't even need a fresh seed — just confirm it doesn't raise:
-    sampler.sample_sft(sneaky, response_length=R, num_steps=4,
-                       prompt_lens=lens, pad_token_id=PAD)
+    sampler.sample_sft(
+        sneaky, response_length=R, num_steps=4, prompt_lens=lens, pad_token_id=PAD
+    )
 
     # -----------------------------------------------------------------------
     # 6. Attention mask wiring: stash + shape + values + restoration.
     #    We spy on the backbone, which now records the mask it received.
     # -----------------------------------------------------------------------
     assert sampler._attention_mask is None
-    out = sampler.sample_sft(ragged, response_length=R, num_steps=2,
-                             pad_token_id=PAD, noise_removal=False)
+    out = sampler.sample_sft(
+        ragged, response_length=R, num_steps=2, pad_token_id=PAD, noise_removal=False
+    )
     m = sampler.backbone.last_attention_mask
     assert m is not None, "backbone never received an attention_mask"
     assert m.shape == (B, P_max + R), m.shape
     # per row: 1 across [0, Pb+R), 0 across [Pb+R, P_max+R)
     for b, p in enumerate(ragged):
         Pb = p.numel()
-        assert (m[b, :Pb + R] == 1).all(), f"row {b}: attended region wrong"
-        assert (m[b, Pb + R:] == 0).all(), f"row {b}: pad region not masked out"
+        assert (m[b, : Pb + R] == 1).all(), f"row {b}: attended region wrong"
+        assert (m[b, Pb + R :] == 0).all(), f"row {b}: pad region not masked out"
     assert sampler._attention_mask is None, "mask leaked after normal return"
 
     # 6b. Mask must be restored on EXCEPTION too.
     sampler._attention_mask = "SENTINEL"  # pretend an outer caller had set it
     try:
-        sampler.sample_sft(ragged, response_length=R, num_steps=4)  # missing pad -> raises
+        sampler.sample_sft(
+            ragged, response_length=R, num_steps=4
+        )  # missing pad -> raises
     except AssertionError:
         pass
-    assert sampler._attention_mask == "SENTINEL", \
-        "exception path failed to restore prior _attention_mask"
+    assert (
+        sampler._attention_mask == "SENTINEL"
+    ), "exception path failed to restore prior _attention_mask"
     sampler._attention_mask = None  # clean up
 
     # 6c. Equal-length call must STILL set a mask (all-ones) so the backbone
@@ -687,14 +722,18 @@ def run_varlen_tests():
     #    _ddpm_caching_update freezes any non-mask token.
     # -----------------------------------------------------------------------
     out_short = sampler.sample_sft(
-        ragged, response_length=R, num_steps=3,
-        pad_token_id=PAD, noise_removal=False,
+        ragged,
+        response_length=R,
+        num_steps=3,
+        pad_token_id=PAD,
+        noise_removal=False,
     )
     for b, p in enumerate(ragged):
         Pb = p.numel()
         if Pb + R < P_max + R:
-            assert (out_short[b, Pb + R:] == PAD).all(), \
-                f"row {b}: pad column drifted without noise_removal"
+            assert (
+                out_short[b, Pb + R :] == PAD
+            ).all(), f"row {b}: pad column drifted without noise_removal"
         # prompt must also still be intact
         assert torch.equal(out_short[b, :Pb], p)
 
@@ -704,13 +743,23 @@ def run_varlen_tests():
     #    early_exit=False at the same seed, (c) yields fewer NFEs.
     # -----------------------------------------------------------------------
     torch.manual_seed(0)
-    a, n_on  = sampler.sample_sft(ragged, response_length=R, num_steps=512,
-                                  pad_token_id=PAD,
-                                  early_exit=True, return_nfes=True)
+    a, n_on = sampler.sample_sft(
+        ragged,
+        response_length=R,
+        num_steps=512,
+        pad_token_id=PAD,
+        early_exit=True,
+        return_nfes=True,
+    )
     torch.manual_seed(0)
-    b_, n_off = sampler.sample_sft(ragged, response_length=R, num_steps=512,
-                                   pad_token_id=PAD,
-                                   early_exit=False, return_nfes=True)
+    b_, n_off = sampler.sample_sft(
+        ragged,
+        response_length=R,
+        num_steps=512,
+        pad_token_id=PAD,
+        early_exit=False,
+        return_nfes=True,
+    )
     assert torch.equal(a, b_), "early_exit changed the varlen sample"
     assert n_on <= n_off and n_on < 512, (n_on, n_off)
     print(f"  [info] varlen NFEs early_exit on/off: {n_on}/{n_off}")
@@ -721,10 +770,9 @@ def run_varlen_tests():
     # -----------------------------------------------------------------------
     p1 = torch.tensor([3, 1, 4, 1, 5, 9], dtype=torch.long)
     torch.manual_seed(0)
-    out_1d   = sampler.sample_sft(p1, response_length=R, num_steps=16)
+    out_1d = sampler.sample_sft(p1, response_length=R, num_steps=16)
     torch.manual_seed(0)
-    out_l1   = sampler.sample_sft([p1], response_length=R, num_steps=16,
-                                  pad_token_id=PAD)
+    out_l1 = sampler.sample_sft([p1], response_length=R, num_steps=16, pad_token_id=PAD)
     assert torch.equal(out_1d, out_l1), "B=1 list path diverges from 1-D path"
 
     # -----------------------------------------------------------------------
@@ -732,18 +780,22 @@ def run_varlen_tests():
     #     unconditional generation in row b). The relaxed SUBS guard must
     #     accept it; the canvas should still satisfy the mask invariant.
     # -----------------------------------------------------------------------
-    with_empty = [torch.tensor([7, 8, 9], dtype=torch.long),
-                  torch.empty(0,           dtype=torch.long)]
-    out_e = sampler.sample_sft(with_empty, response_length=R, num_steps=8,
-                               pad_token_id=PAD)
+    with_empty = [
+        torch.tensor([7, 8, 9], dtype=torch.long),
+        torch.empty(0, dtype=torch.long),
+    ]
+    out_e = sampler.sample_sft(
+        with_empty, response_length=R, num_steps=8, pad_token_id=PAD
+    )
     assert out_e.shape == (2, max(3, 0) + R)
     assert torch.equal(out_e[0, :3], with_empty[0])
-    assert (out_e[0, 3:3 + R] != MASK).all()
-    assert (out_e[1, :R]     != MASK).all()       # row 1 is all response
+    assert (out_e[0, 3 : 3 + R] != MASK).all()
+    assert (out_e[1, :R] != MASK).all()  # row 1 is all response
 
     print("all VARLEN SFT sampler tests OK")
 
 
 if __name__ == "__main__":
-    from src.mdlm.mdlm_helpers.mdlm_scheduler import * 
+    from src.mdlm.mdlm_helpers.mdlm_scheduler import *
+
     run_varlen_tests()
