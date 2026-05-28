@@ -5,9 +5,10 @@ TRAIN_MODEL_LOAD_PATH: "./weights/base"
 TRAIN_MODEL_SAVE_PATH: "./weights/checkpoints"
 
 # dataset
-num_samples: 10
+num_train_samples: 10
+num_test_samples: 10
 num_workers: 4
-max_length: 512
+max_length: 1024
 
 # training
 num_epochs: 1
@@ -19,7 +20,7 @@ loss_weight_type: "uniform"
 
 # reporting & checkpointing
 eval_strategy: "steps"
-eval_steps: 50
+eval_steps: 100
 save_strategy: "no"
 report_to:
   - "tensorboard"

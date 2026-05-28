@@ -17,7 +17,8 @@ def main(cfg: DictConfig) -> None:
         TRAIN_MODEL_LOAD_PATH=cfg.TRAIN_MODEL_LOAD_PATH,
         TRAIN_MODEL_SAVE_PATH=f"{cfg.TRAIN_MODEL_SAVE_PATH}/{override_dirname}",
         # dataset
-        num_samples=cfg.num_samples,
+        num_train_samples=cfg.num_train_samples,
+        num_test_samples=cfg.num_test_samples,
         num_workers=cfg.num_workers,
         max_length=cfg.max_length,
         # training
