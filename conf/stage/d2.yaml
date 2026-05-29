@@ -8,5 +8,5 @@ paths:
 training:
   num_epochs: 1
 eval:
-  steps: 2000
+  steps: 1000
   save_strategy: "steps"

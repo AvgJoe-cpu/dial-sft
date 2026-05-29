@@ -34,7 +34,7 @@ class TrainingConfig:
     warmup_ratio: float = 0.03
     weight_decay: float = 0.01
     grad_clip: float = 1.0
-    logging_steps: int = 1
+    logging_steps: int = 20
     seed: int = 42
     scheduler: str = "linear"            # "linear" | "cosine"
     loss_weight_type: str = "uniform"    # "uniform" | "scheduler"
