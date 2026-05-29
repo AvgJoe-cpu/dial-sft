@@ -7,22 +7,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
       with:
         python-version: "3.10"
+        enable-cache: true
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pylint black isort
-        pip install transformers datasets trl jinja2 torch torchmetrics tensorboardX huggingface_hub numpy
+      run: uv sync --group dev
     - name: Check formatting with black
-      run: |
-        black --check src/
+      run: uv run black --check src/
     - name: Check import order with isort
-      run: |
-        isort --check src/
+      run: uv run isort --check src/
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py') --disable=C0114,C0115,C0116,C0301,C0303,C0304,C0410,C0411,C0415,R0902,R0903,R0913,R0915,R0917,W0614
+        uv run pylint $(git ls-files '*.py') --disable=C0114,C0115,C0116,C0301,C0303,C0304,C0410,C0411,C0415,R0902,R0903,R0913,R0915,R0917,W0614
       continue-on-error: true
