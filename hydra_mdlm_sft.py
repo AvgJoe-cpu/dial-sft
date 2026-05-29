@@ -1,12 +1,14 @@
 import hydra
-from omegaconf import DictConfig
 from hydra.core.hydra_config import HydraConfig
 
+from src.config_schema import ExperimentConfig, register_configs
 from src.mdlm.mdlm_train_sft import TrainingConfig, run_training
+
+register_configs()
 
 
 @hydra.main(config_path="conf", config_name="config", version_base=None)
-def main(cfg: DictConfig) -> None:
+def main(cfg: ExperimentConfig) -> None:
     """Convert Hydra config → TrainingConfig, then delegate to run_training."""
     override_dirname = HydraConfig.get().job.override_dirname or "default"
 
@@ -29,6 +31,8 @@ def main(cfg: DictConfig) -> None:
         weight_decay=cfg.training.weight_decay,
         grad_clip=cfg.training.grad_clip,
         logging_steps=cfg.training.logging_steps,
+        adam_beta1=cfg.training.adam_beta1,
+        adam_beta2=cfg.training.adam_beta2,
         seed=cfg.seed,
         # model (MDLM)
         scheduler=cfg.model.scheduler,

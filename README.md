@@ -13,6 +13,67 @@ dial-sft/
 ```
 
 
+## Setup
+
+This project uses [uv](https://docs.astral.sh/uv/) for environment and dependency management.
+
+### Install uv
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### Setup (first time after clone)
+
+```bash
+make setup
+```
+
+This installs all dependencies and registers the git hooks. From this point, code quality checks (formatting, linting, type-checking) run automatically on every `git commit`.
+
+### Manual commands
+
+```bash
+make lint       # run all linters across the full codebase
+make typecheck  # run mypy type checker
+uv sync         # install runtime deps only
+uv sync --group dev  # install runtime + dev deps
+```
+
+### Run scripts
+
+Prefix commands with `uv run` to execute within the managed environment:
+
+```bash
+uv run python hydra_mdlm_sft.py
+uv run pytest
+uv run black src/
+```
+
+> **Note:** After merging, run `uv lock` locally to generate the `uv.lock` file and commit it to the repository. This ensures fully reproducible installs across machines and CI. Run `uv lock --upgrade` to update all dependencies.
+
+## TUI
+
+Launch the interactive experiment interface:
+
+```bash
+uv run dial-sft
+```
+
+### Screens
+
+| Screen | Key | Purpose |
+|---|---|---|
+| Setup | `s` | Select configs, set overrides, preview resolved config, launch runs |
+| Monitor | `m` | Live log tail, job queue status, completed run browser |
+
+### Use cases
+
+- **Single run:** select stage + model, set overrides, launch
+- **Sweep:** enter comma-separated values per param, launch full grid sequentially
+- **Stage chain:** check "Run d0→d1→d2", launch progressive curriculum
+- **Monitor:** watch live training output, cancel jobs, browse past runs
+
 ## Experiments 
 
 ### Pilot
