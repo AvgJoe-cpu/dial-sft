@@ -8,4 +8,4 @@ paths:
 training:
   num_epochs: 1
 eval:
-  steps: 100
+  steps: 250

@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
     train_ds = load_from_disk(cfg.split_save_paths["train"])
 
-    size_pcts = [0.1, 0.2, 0.5, 1.0]   # D0 ⊂ D1 ⊂ D2 ⊂ D3
+    size_pcts = [0.25, 0.5, 1.0]   # D0 ⊂ D1 ⊂ D2
     sizes = sorted(set(max(1, round(p * len(train_ds))) for p in size_pcts))
     print(f"Creating nested subsets with sizes: {sizes} ({[f'{p*100:.1f}%' for p in size_pcts]})")
 
