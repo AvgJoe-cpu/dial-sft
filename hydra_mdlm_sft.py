@@ -29,6 +29,8 @@ def main(cfg: DictConfig) -> None:
         weight_decay=cfg.training.weight_decay,
         grad_clip=cfg.training.grad_clip,
         logging_steps=cfg.training.logging_steps,
+        adam_beta1=cfg.training.adam_beta1,
+        adam_beta2=cfg.training.adam_beta2,
         seed=cfg.seed,
         # model (MDLM)
         scheduler=cfg.model.scheduler,

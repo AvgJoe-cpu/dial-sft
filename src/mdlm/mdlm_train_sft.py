@@ -36,7 +36,9 @@ class TrainingConfig:
     grad_clip: float = 1.0
     logging_steps: int = 20
     seed: int = 42
-    scheduler: str = "linear"            # "linear" | "cosine"
+    adam_beta1: float = 0.9
+    adam_beta2: float = 0.999
+    scheduler: str = "linear"            # "linear" | "cosine"  -> alpha(t) family
     loss_weight_type: str = "uniform"    # "uniform" | "scheduler"
     time_epsilon: float = 0.001
 
@@ -105,6 +107,8 @@ def run_training(config: TrainingConfig = TrainingConfig()):
         weight_decay=config.weight_decay,
         max_grad_norm=config.grad_clip,
         seed=config.seed,
+        adam_beta1=config.adam_beta1,
+        adam_beta2=config.adam_beta2,
         time_epsilon=config.time_epsilon,
         loss_weight_type=config.loss_weight_type,
         dataloader_num_workers=config.num_workers,
