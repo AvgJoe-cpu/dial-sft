@@ -15,10 +15,10 @@ from src.mdlm.mdlm_helpers.mdlm_trainer_sft import (MDLMConfig, MDLMSFTTrainer,
 @dataclass
 class TrainingConfig:
     # --- data & model paths ---
-    TRAIN_DATA_LOAD_PATH: str = "./datasets/base/writingprompts_train"
-    TEST_DATA_LOAD_PATH: str = "./datasets/base/writingprompts_test"
-    TRAIN_MODEL_LOAD_PATH: str = "./weights/base"
-    TRAIN_MODEL_SAVE_PATH: str = "./weights/checkpoints"
+    TRAIN_DATA_LOAD_PATH: str = "./artifacts/datasets/base/writingprompts_train"
+    TEST_DATA_LOAD_PATH: str = "./artifacts/datasets/base/writingprompts_test"
+    TRAIN_MODEL_LOAD_PATH: str = "./artifacts/weights/base"
+    TRAIN_MODEL_SAVE_PATH: str = "./artifacts/weights/checkpoints"
 
     # --- dataset ---
     num_train_samples: int = 1000

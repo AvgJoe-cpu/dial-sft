@@ -16,9 +16,9 @@ from src.mdlm.mdlm_helpers.mdlm_scheduler import (BaseAlphaScheduler,
 @dataclass
 class InferenceConfig:
     # --- data & model paths ---
-    INFERENCE_LOAD_PATH: str = "./datasets/base/writingprompts_test"
-    INFERENCE_SAVE_PATH: str = "./datasets/checkpoints/mdlm_generations"
-    INFERENCE_MODEL_PATH: str = "./weights/base"
+    INFERENCE_LOAD_PATH: str = "./artifacts/datasets/base/writingprompts_test"
+    INFERENCE_SAVE_PATH: str = "./artifacts/datasets/checkpoints/mdlm_generations"
+    INFERENCE_MODEL_PATH: str = "./artifacts/weights/base"
 
     # --- dataset ---
     num_samples: int = 10

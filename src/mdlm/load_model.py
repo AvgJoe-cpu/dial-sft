@@ -44,7 +44,7 @@ def resize_mdlm_vocab(model, new_vocab: int) -> None:
 
 def load_model(
     bucket: str = "avgJo3/mdlm-owt-bucket",
-    local_dir: str = "./weights",
+    local_dir: str = "./artifacts/weights",
     tokenizer_name: str = "gpt2",
     verbose: bool = True,
 ):
