@@ -31,6 +31,7 @@ class TrainingConfig:
     num_epochs: int = 2
     batch_size: int = 16
     learning_rate: float = 2e-5
+    warmup_ratio: float = 0.03,
     logging_steps: int = 1
     scheduler: str = "linear"            # "linear" | "cosine"
     loss_weight_type: str = "uniform"    # "uniform" | "scheduler"
@@ -97,6 +98,7 @@ def run_training(config: TrainingConfig = TrainingConfig()):
         per_device_train_batch_size=config.batch_size,
         per_device_eval_batch_size=config.batch_size,
         learning_rate=config.learning_rate,
+        warmup_ratio=config.warmup_ratio,
         time_epsilon=config.time_epsilon,
         loss_weight_type=config.loss_weight_type,
         dataloader_num_workers=config.num_workers,

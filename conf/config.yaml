@@ -14,7 +14,7 @@ paths:
   log_dir:    "./runs/pilot/${stage_name}"
 
 dataset:
-  num_test_samples: 2000
+  num_test_samples: 10000
   num_workers:      4
   max_length:       1024                  # ∈ {512, 768, 1024}
   id_field:         "id"
