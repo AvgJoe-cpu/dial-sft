@@ -35,6 +35,7 @@ class TrainingConfig:
     weight_decay: float = 0.01
     grad_clip: float = 1.0
     logging_steps: int = 1
+    seed: int = 42
     scheduler: str = "linear"            # "linear" | "cosine"
     loss_weight_type: str = "uniform"    # "uniform" | "scheduler"
     time_epsilon: float = 0.001
@@ -85,7 +86,7 @@ def run_training(config: TrainingConfig = TrainingConfig()):
     test_ds = load_from_disk(config.TEST_DATA_LOAD_PATH)
     if config.num_test_samples and config.num_test_samples > 0:
         test_ds = test_ds.select(range(min(config.num_test_samples, len(test_ds))))
-    
+
     test_ds = test_ds.map(format_to_messages).map(_sft_map_fn)
     test_ds = test_ds.select_columns(["input_ids", "labels", "assistant_mask"])
 
@@ -103,6 +104,7 @@ def run_training(config: TrainingConfig = TrainingConfig()):
         warmup_ratio=config.warmup_ratio,
         weight_decay=config.weight_decay,
         max_grad_norm=config.grad_clip,
+        seed=config.seed,
         time_epsilon=config.time_epsilon,
         loss_weight_type=config.loss_weight_type,
         dataloader_num_workers=config.num_workers,
