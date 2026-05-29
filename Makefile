@@ -8,4 +8,4 @@ lint: ## Run all linters across the full codebase
 	uv run pre-commit run --all-files
 
 typecheck: ## Run mypy type checker
-	uv run mypy src/ hydra_mdlm_sft.py
+	uv run mypy src/ src/hydra_mdlm_sft.py
