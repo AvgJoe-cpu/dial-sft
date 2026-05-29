@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "dial-sft"
 version = "0.1.0"
 description = "Dialog SFT with MLM training"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
     {name = "AvgJoe-cpu"},
 ]
@@ -25,14 +25,17 @@ dependencies = [
 
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest",
     "black",
     "isort",
     "flake8",
+    "pylint",
 ]
 
+[tool.uv]
+dev-dependencies = []
 
 [tool.pylint.format]
 max-line-length = 88
@@ -41,6 +44,5 @@ line-length = 88
 [tool.isort]
 profile = "black"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

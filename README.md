@@ -13,6 +13,38 @@ dial-sft/
 ```
 
 
+## Setup
+
+This project uses [uv](https://docs.astral.sh/uv/) for environment and dependency management.
+
+### Install uv
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### Create environment and install dependencies
+
+```bash
+# Install all runtime dependencies
+uv sync
+
+# Include dev tools (linters, formatters, test runner)
+uv sync --group dev
+```
+
+### Run scripts
+
+Prefix commands with `uv run` to execute within the managed environment:
+
+```bash
+uv run python hydra_mdlm_sft.py
+uv run pytest
+uv run black src/
+```
+
+> **Note:** After merging, run `uv lock` locally to generate the `uv.lock` file and commit it to the repository. This ensures fully reproducible installs across machines and CI. Run `uv lock --upgrade` to update all dependencies.
+
 ## Experiments 
 
 ### Pilot
