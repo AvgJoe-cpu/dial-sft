@@ -32,6 +32,8 @@ class TrainingConfig:
     batch_size: int = 16
     learning_rate: float = 2e-5
     warmup_ratio: float = 0.03
+    weight_decay: float = 0.01
+    grad_clip: float = 1.0
     logging_steps: int = 1
     scheduler: str = "linear"            # "linear" | "cosine"
     loss_weight_type: str = "uniform"    # "uniform" | "scheduler"
@@ -39,7 +41,7 @@ class TrainingConfig:
 
     # --- reporting & checkpointing ---
     eval_strategy: str = "steps"
-    eval_steps: int = 50    
+    eval_steps: int = 50
     save_strategy: str = "no"
     report_to: list = field(default_factory=lambda: ["tensorboard"])
 
@@ -99,18 +101,19 @@ def run_training(config: TrainingConfig = TrainingConfig()):
         per_device_eval_batch_size=config.batch_size,
         learning_rate=config.learning_rate,
         warmup_ratio=config.warmup_ratio,
+        weight_decay=config.weight_decay,
+        max_grad_norm=config.grad_clip,
         time_epsilon=config.time_epsilon,
         loss_weight_type=config.loss_weight_type,
         dataloader_num_workers=config.num_workers,
         logging_steps=config.logging_steps,
         eval_strategy=config.eval_strategy,
-        eval_steps=config.eval_steps,        
+        eval_steps=config.eval_steps,
         save_strategy=config.save_strategy,
         report_to=config.report_to,
         batch_eval_metrics=True,
         remove_unused_columns=False,
-        bf16=True,                  
-
+        bf16=True,
     )
     metric_computer = NLLPPLMetricComputer()
 
@@ -129,7 +132,6 @@ def run_training(config: TrainingConfig = TrainingConfig()):
     #trainer.save_model()
     del trainer, args, collator, scheduler, train_ds, test_ds, model, tokenizer
 
-    if torch.device.type == "cuda":
+    if torch.cuda.is_available():
         torch.cuda.empty_cache()
     gc.collect()
-

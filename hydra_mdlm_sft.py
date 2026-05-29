@@ -25,6 +25,9 @@ def main(cfg: DictConfig) -> None:
         num_epochs=cfg.training.num_epochs,
         batch_size=cfg.training.batch_size,
         learning_rate=cfg.training.learning_rate,
+        warmup_ratio=cfg.training.warmup_ratio,
+        weight_decay=cfg.training.weight_decay,
+        grad_clip=cfg.training.grad_clip,
         logging_steps=cfg.training.logging_steps,
         # model (MDLM)
         scheduler=cfg.model.scheduler,
