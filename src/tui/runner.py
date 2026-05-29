@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum, auto
 from pathlib import Path
 from typing import AsyncGenerator
@@ -18,6 +18,9 @@ from typing import AsyncGenerator
 # Repo root: src/tui/runner.py → parents[2] is repo root
 _REPO_ROOT = Path(__file__).parents[2]
 _LOGS_DIR = _REPO_ROOT / "logs"
+
+# Maximum iterations waiting for log file to appear (each iteration = 0.1 s → 5 s total)
+_LOG_FILE_WAIT_ITERATIONS = 50
 
 
 class JobState(Enum):
@@ -30,7 +33,7 @@ class JobState(Enum):
 
 def _make_run_id(override_string: str) -> str:
     """Generate a unique run_id from a timestamp and a slug of the overrides."""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     slug = override_string.replace(" ", "_").replace("=", "-").replace("/", "-")
     slug = slug[:60] if len(slug) > 60 else slug
     return f"{timestamp}__{slug}" if slug else timestamp
@@ -111,7 +114,7 @@ class Runner:
         """
         log_path = job.log_path
         # Wait for the log file to be created (with timeout)
-        for _ in range(50):
+        for _ in range(_LOG_FILE_WAIT_ITERATIONS):
             if log_path.exists():
                 break
             await asyncio.sleep(0.1)

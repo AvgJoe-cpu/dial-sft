@@ -45,6 +45,11 @@ _REPO_ROOT = Path(__file__).parents[2]
 _CONF_DIR = _REPO_ROOT / "conf"
 _WEIGHTS_CHECKPOINTS = _REPO_ROOT / "weights" / "checkpoints"
 
+# Display constants
+_SWEEP_PREVIEW_LIMIT = 10
+_JOB_ID_DISPLAY_LENGTH = 20
+_OVERRIDE_DISPLAY_LENGTH = 40
+
 # ---------------------------------------------------------------------------
 # Config builder — module-level functions
 # ---------------------------------------------------------------------------
@@ -120,8 +125,17 @@ def build_multirun_overrides(
     return override_strings
 
 
-def resolve_config_preview(stage: str, overrides: dict[str, str]) -> dict:
-    """Merge base + stage + model + overrides into a single dict for preview."""
+def resolve_config_preview(
+    stage: str, overrides: dict[str, str], model: str | None = None
+) -> dict:
+    """Merge base + stage + model + overrides into a single dict for preview.
+
+    Args:
+        stage: Stage name (e.g. "d0", "d1", "d2").
+        overrides: Dot-notation key/value overrides to apply on top.
+        model: Model config name to merge (e.g. "mdlm_0_2b"). If None,
+               the first available model config is used as fallback.
+    """
     base = load_base_config()
     stage_configs = load_stage_configs()
     model_configs = load_model_configs()
@@ -135,8 +149,12 @@ def resolve_config_preview(stage: str, overrides: dict[str, str]) -> dict:
         stage_cfg.pop("defaults", None)
         base = _deep_merge(base, stage_cfg)
 
-    # Merge model config (use the first available model if any)
-    if model_configs:
+    # Merge selected model config, falling back to first available
+    if model and model in model_configs:
+        model_cfg = dict(model_configs[model])
+        model_cfg.pop("defaults", None)
+        base = _deep_merge(base, model_cfg)
+    elif model_configs:
         model_cfg = dict(next(iter(model_configs.values())))
         model_cfg.pop("defaults", None)
         base = _deep_merge(base, model_cfg)
@@ -290,6 +308,13 @@ class SetupScreen(Screen):
         except NoMatches:
             return "d0"
 
+    def _get_selected_model(self) -> str | None:
+        try:
+            val = self.query_one("#model-select", Select).value
+            return str(val) if val and val != Select.BLANK else None
+        except NoMatches:
+            return None
+
     def _get_sweep_mode(self) -> bool:
         try:
             return self.query_one("#sweep-toggle", Checkbox).value
@@ -346,6 +371,7 @@ class SetupScreen(Screen):
     def _update_preview(self) -> None:
         """Recompute and display the config preview."""
         stage = self._get_selected_stage()
+        model = self._get_selected_model()
         overrides = self._collect_overrides()
         errors = self._validate_overrides(overrides)
 
@@ -379,7 +405,7 @@ class SetupScreen(Screen):
                 override_str = build_override_string(s, overrides)
                 lines.append(f"# --- {s} ---")
                 lines.append(f"# override: {override_str}\n")
-                merged = resolve_config_preview(s, overrides)
+                merged = resolve_config_preview(s, overrides, model=model)
                 lines.append(yaml.dump(merged, default_flow_style=False, sort_keys=True))
         elif sweep_mode:
             # Show grid summary
@@ -390,10 +416,10 @@ class SetupScreen(Screen):
                     sweep_params[key] = values
             grid = build_multirun_overrides(stage, sweep_params)
             lines.append(f"# Sweep: {len(grid)} runs (stage={stage})\n")
-            for i, override_str in enumerate(grid[:10], 1):
+            for i, override_str in enumerate(grid[:_SWEEP_PREVIEW_LIMIT], 1):
                 lines.append(f"  [{i:2d}] {override_str}")
-            if len(grid) > 10:
-                lines.append(f"  ... and {len(grid) - 10} more")
+            if len(grid) > _SWEEP_PREVIEW_LIMIT:
+                lines.append(f"  ... and {len(grid) - _SWEEP_PREVIEW_LIMIT} more")
             lines.append("\n# First run preview:")
             if grid:
                 first_overrides: dict[str, str] = {}
@@ -401,13 +427,13 @@ class SetupScreen(Screen):
                     if "=" in part and not part.startswith("stage="):
                         k, v = part.split("=", 1)
                         first_overrides[k] = v
-                merged = resolve_config_preview(stage, first_overrides)
+                merged = resolve_config_preview(stage, first_overrides, model=model)
                 lines.append(yaml.dump(merged, default_flow_style=False, sort_keys=True))
         else:
             # Single run preview
             override_str = build_override_string(stage, overrides)
             lines.append(f"# override: {override_str}\n")
-            merged = resolve_config_preview(stage, overrides)
+            merged = resolve_config_preview(stage, overrides, model=model)
             lines.append(yaml.dump(merged, default_flow_style=False, sort_keys=True))
 
         preview_static.update("\n".join(lines))
@@ -540,8 +566,8 @@ class MonitorScreen(Screen):
         for job in jobs:
             marker = "▶ " if job == self._runner.active_job else "  "
             state_str = job.state.name
-            short_id = job.run_id[:20]
-            short_override = job.override_string[:40]
+            short_id = job.run_id[:_JOB_ID_DISPLAY_LENGTH]
+            short_override = job.override_string[:_OVERRIDE_DISPLAY_LENGTH]
             lines.append(f"{marker}[{state_str:9s}] {short_id} {short_override}")
         queue_static.update("\n".join(lines))
 
