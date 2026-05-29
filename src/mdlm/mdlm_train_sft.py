@@ -31,7 +31,7 @@ class TrainingConfig:
     num_epochs: int = 2
     batch_size: int = 16
     learning_rate: float = 2e-5
-    warmup_ratio: float = 0.03,
+    warmup_ratio: float = 0.03
     logging_steps: int = 1
     scheduler: str = "linear"            # "linear" | "cosine"
     loss_weight_type: str = "uniform"    # "uniform" | "scheduler"
