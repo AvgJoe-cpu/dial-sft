@@ -29,6 +29,7 @@ def main(cfg: DictConfig) -> None:
         weight_decay=cfg.training.weight_decay,
         grad_clip=cfg.training.grad_clip,
         logging_steps=cfg.training.logging_steps,
+        seed=cfg.seed,
         # model (MDLM)
         scheduler=cfg.model.scheduler,
         loss_weight_type=cfg.model.loss_weight_type,
