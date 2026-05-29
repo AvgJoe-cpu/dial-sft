@@ -35,3 +35,6 @@ htmlcov/
 *.ckpt
 *.pt
 multirun
+
+# Training run logs
+logs/

@@ -45,6 +45,28 @@ uv run black src/
 
 > **Note:** After merging, run `uv lock` locally to generate the `uv.lock` file and commit it to the repository. This ensures fully reproducible installs across machines and CI. Run `uv lock --upgrade` to update all dependencies.
 
+## TUI
+
+Launch the interactive experiment interface:
+
+```bash
+uv run dial-sft
+```
+
+### Screens
+
+| Screen | Key | Purpose |
+|---|---|---|
+| Setup | `s` | Select configs, set overrides, preview resolved config, launch runs |
+| Monitor | `m` | Live log tail, job queue status, completed run browser |
+
+### Use cases
+
+- **Single run:** select stage + model, set overrides, launch
+- **Sweep:** enter comma-separated values per param, launch full grid sequentially
+- **Stage chain:** check "Run d0→d1→d2", launch progressive curriculum
+- **Monitor:** watch live training output, cancel jobs, browse past runs
+
 ## Experiments 
 
 ### Pilot
