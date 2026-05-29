@@ -7,14 +7,12 @@ seed: 42
 
 paths:
   # stage-specific train path is set in conf/stage/*.yaml
-  test_data:  "./datasets/base/writingprompts_test"
-  eval_data:  "./datasets/base/writingprompts_eval"
+  test_data:  "./datasets/base/writingprompts_eval" # HPO test set: real test has _test suffix, but we want to use the same eval set for all stages
   model_load: "./weights/base"
   model_save: "./weights/checkpoints/${stage_name}"
   log_dir:    "./runs/pilot/${stage_name}"
 
 dataset:
-  num_test_samples: 10000
   num_workers:      4
   max_length:       1024                  # ∈ {512, 768, 1024}
   id_field:         "id"

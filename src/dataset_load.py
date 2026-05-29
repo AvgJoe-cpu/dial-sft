@@ -144,12 +144,8 @@ if __name__ == "__main__":
     print(ds.column_names)
 
     ds_prefix = "".join(re.findall(r'(?:^|_)([a-z])', re.search(r'/(\w+)$', cfg.dataset_name).group(1)))
-    non_test_paths = [p for k, p in cfg.split_save_paths.items() if k != "test"]
-    if len(non_test_paths) > 2:
-        from datasets import concatenate_datasets
-        train_ds = concatenate_datasets([load_from_disk(p) for p in non_test_paths])
-    else:
-        train_ds = load_from_disk(non_test_paths[0])
+
+    train_ds = load_from_disk(cfg.split_save_paths["train"])
 
     size_pcts = [0.1, 0.2, 0.5, 1.0]   # D0 ⊂ D1 ⊂ D2 ⊂ D3
     sizes = sorted(set(max(1, round(p * len(train_ds))) for p in size_pcts))
