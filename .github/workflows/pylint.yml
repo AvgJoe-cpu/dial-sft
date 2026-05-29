@@ -14,6 +14,10 @@ jobs:
         enable-cache: true
     - name: Install dependencies
       run: uv sync --group dev
+    - name: Run pre-commit (all files)
+      run: uv run pre-commit run --all-files
+    - name: Type-check with mypy
+      run: uv run mypy src/ hydra_mdlm_sft.py
     - name: Check formatting with black
       run: uv run black --check src/
     - name: Check import order with isort
