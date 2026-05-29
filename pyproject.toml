@@ -22,8 +22,12 @@ dependencies = [
     "tensorboardX",
     "tensorboard",
     "typer[all]",
-
+    "textual>=0.60",
+    "pyyaml",
 ]
+
+[project.scripts]
+dial-sft = "src.tui.app:run"
 
 [dependency-groups]
 dev = [
