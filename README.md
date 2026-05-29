@@ -23,14 +23,21 @@ This project uses [uv](https://docs.astral.sh/uv/) for environment and dependenc
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### Create environment and install dependencies
+### Setup (first time after clone)
 
 ```bash
-# Install all runtime dependencies
-uv sync
+make setup
+```
 
-# Include dev tools (linters, formatters, test runner)
-uv sync --group dev
+This installs all dependencies and registers the git hooks. From this point, code quality checks (formatting, linting, type-checking) run automatically on every `git commit`.
+
+### Manual commands
+
+```bash
+make lint       # run all linters across the full codebase
+make typecheck  # run mypy type checker
+uv sync         # install runtime deps only
+uv sync --group dev  # install runtime + dev deps
 ```
 
 ### Run scripts

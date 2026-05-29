@@ -32,6 +32,8 @@ dev = [
     "isort",
     "flake8",
     "pylint",
+    "pre-commit",
+    "mypy",
 ]
 
 [tool.uv]
@@ -46,3 +48,15 @@ profile = "black"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_ignores = true
+files = ["src", "hydra_mdlm_sft.py"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "E501"]
