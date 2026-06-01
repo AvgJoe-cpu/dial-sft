@@ -232,7 +232,7 @@ if __name__ == "__main__":
     import tempfile
 
     from datasets import Dataset
-    from src.mdlm.load_model import load_model
+    from src.mdlm.mdlm_load_model import load_model
 
     with tempfile.TemporaryDirectory() as tmp:
         model, tokenizer = load_model(local_dir=tmp)

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import torch
 
 from datasets import load_from_disk
-from src.mdlm.load_model import load_model
+from src.mdlm.mdlm_load_model import load_model
 from src.mdlm.mdlm_helpers.mdlm_scheduler import (BaseAlphaScheduler,
                                                   LinearAlphaScheduler, make_alpha_scheduler)
 from src.mdlm.mdlm_helpers.mdlm_trainer_sft import (MDLMConfig, MDLMSFTTrainer,

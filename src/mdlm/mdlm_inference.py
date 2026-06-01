@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import torch
 
 from datasets import load_from_disk
-from src.mdlm.load_model import load_model
+from src.mdlm.mdlm_load_model import load_model
 from src.mdlm.mdlm_helpers.mdlm_sampler_sft import (MDLMSamplerConfig,
                                                     MinimalMDLMSampler,
                                                     SFTMixinBatchedVarlen)

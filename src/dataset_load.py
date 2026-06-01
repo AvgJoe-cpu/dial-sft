@@ -131,7 +131,7 @@ if __name__ == "__main__":
         },
     )
 
-    from src.ar.ar_baseline import setup_model_and_tokenizer
+    from src.ar.ar_train_sft import setup_model_and_tokenizer
     _, tokenizer = setup_model_and_tokenizer(model_name="EleutherAI/pythia-70m")
 
     if all(os.path.exists(p) for p in cfg.split_save_paths.values()):
