@@ -125,9 +125,9 @@ if __name__ == "__main__":
     cfg = DatasetProcessingConfig(
         dataset_name="euclaise/writingprompts",
         split_save_paths={
-            "train":      "./datasets/base/writingprompts_train",
-            "validation": "./datasets/base/writingprompts_eval",
-            "test":       "./datasets/base/writingprompts_test",
+            "train":      "./artifacts/datasets/base/writingprompts_train",
+            "validation": "./artifacts/datasets/base/writingprompts_eval",
+            "test":       "./artifacts/datasets/base/writingprompts_test",
         },
     )
 
