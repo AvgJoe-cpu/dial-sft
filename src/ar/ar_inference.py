@@ -1,28 +1,9 @@
-from dataclasses import dataclass, field
-
 from src.ar.ar_load_model import setup_model_and_tokenizer
+from src.ar.ar_config_schema import InferenceConfig
 
 import torch
 from transformers import GenerationConfig
 from datasets import load_from_disk
-
-
-@dataclass
-class InferenceConfig:
-    # paths
-    INFER_MODEL_LOAD_PATH: str = ""
-    INFER_DATA_LOAD_PATH: str = ""
-    INFER_DATA_SAVE_PATH: str = ""
-    # dataset
-    num_samples: int = 10000
-    # generation
-    max_new_tokens: int = 512
-    num_beams: int = 1
-    do_sample: bool = True
-    use_cache: bool = True
-    temperature: float = 1.1
-    num_return_sequences: int = 1
-    batch_size: int = 10
 
 
 def generate_ar(batch, tokenizer=None, model=None, gen_config=None):
@@ -59,11 +40,11 @@ def generate_ar(batch, tokenizer=None, model=None, gen_config=None):
 
 
 def run_inference(cfg: InferenceConfig) -> None:
-    ds = load_from_disk(cfg.INFER_DATA_LOAD_PATH)
+    ds = load_from_disk(cfg.infer_data_load_path)
     ds = ds.select(range(cfg.num_samples))
 
     model, tokenizer = setup_model_and_tokenizer(
-        model_name=cfg.INFER_MODEL_LOAD_PATH, for_training=False
+        model_name=cfg.infer_model_load_path, for_training=False
     )
     tokenizer.padding_side = "left"
 
@@ -89,6 +70,6 @@ def run_inference(cfg: InferenceConfig) -> None:
             "gen_config": config,
         },
     )
-    ds.save_to_disk(cfg.INFER_DATA_SAVE_PATH)
+    ds.save_to_disk(cfg.infer_data_save_path)
     torch.cuda.empty_cache()
     del model, tokenizer, config, ds

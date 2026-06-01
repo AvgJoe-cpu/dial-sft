@@ -15,13 +15,13 @@ register_configs()
 
 @hydra.main(config_path="../../conf", config_name="ar_config", version_base=None)
 def main(cfg: DictConfig) -> None:
-    # ── TRAINING ──────────────────────────────────────────────────────────
+    # ── TRAINING ─────────────────────────────────────────────────────────────
     print("[AR-SFT] Running training...")
     run_training(
         TrainingConfig(
-            TRAIN_DATA_LOAD_PATH=cfg.paths.train_data_load_path,
-            TRAIN_MODEL_LOAD_PATH=cfg.paths.train_model_load_path,
-            TRAIN_MODEL_SAVE_PATH=cfg.paths.train_model_save_path,
+            train_data_load_path=cfg.paths.train_data_load_path,
+            train_model_load_path=cfg.paths.train_model_load_path,
+            train_model_save_path=cfg.paths.train_model_save_path,
             num_samples=cfg.dataset.num_train_samples,
             num_epochs=cfg.training.num_epochs,
             batch_size=cfg.training.batch_size,
@@ -39,13 +39,13 @@ def main(cfg: DictConfig) -> None:
     )
     print("✓ [AR-SFT] Training complete")
 
-    # ── INFERENCE ─────────────────────────────────────────────────────────
+    # ── INFERENCE ───────────────────────────────────────────────────────────
     print("[AR-SFT] Running inference...")
     run_inference(
         InferenceConfig(
-            INFER_DATA_LOAD_PATH=cfg.paths.infer_data_load_path,
-            INFER_DATA_SAVE_PATH=cfg.paths.infer_data_save_path,
-            INFER_MODEL_LOAD_PATH=cfg.paths.infer_model_load_path,
+            infer_data_load_path=cfg.paths.infer_data_load_path,
+            infer_data_save_path=cfg.paths.infer_data_save_path,
+            infer_model_load_path=cfg.paths.infer_model_load_path,
             num_samples=cfg.dataset.num_infer_samples,
             max_new_tokens=cfg.inference.max_new_tokens,
             num_beams=cfg.inference.num_beams,

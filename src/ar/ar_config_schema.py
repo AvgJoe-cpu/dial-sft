@@ -6,13 +6,12 @@ from omegaconf import MISSING
 
 @dataclass
 class PathsConfig:
-    train_data_load_path: str = MISSING  # data path for training
-    train_model_load_path: str = MISSING  # model path for training
+    train_data_load_path: str = MISSING
+    train_model_load_path: str = MISSING
     train_model_save_path: str = MISSING
-
-    infer_data_load_path: str = MISSING  # data path for inference
-    infer_model_load_path: str = MISSING  # model path for inference
-    infer_data_save_path: str = MISSING  # output path for inference results
+    infer_data_load_path: str = MISSING
+    infer_model_load_path: str = MISSING
+    infer_data_save_path: str = MISSING
 
 
 @dataclass
@@ -23,6 +22,13 @@ class DatasetConfig:
 
 @dataclass
 class TrainingConfig:
+    # paths
+    train_data_load_path: str = ""
+    train_model_load_path: str = ""
+    train_model_save_path: str = ""
+    # dataset
+    num_samples: int = 10000
+    # training
     num_epochs: int = 4
     batch_size: int = 64
     logging_steps: int = 10
@@ -43,6 +49,13 @@ class TrainingConfig:
 
 @dataclass
 class InferenceConfig:
+    # paths
+    infer_model_load_path: str = ""
+    infer_data_load_path: str = ""
+    infer_data_save_path: str = ""
+    # dataset
+    num_samples: int = 10000
+    # generation
     max_new_tokens: int = 512
     num_beams: int = 1
     do_sample: bool = True
