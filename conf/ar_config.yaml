@@ -1,0 +1,39 @@
+defaults:
+  - _self_
+
+paths:
+  train_data_load_path: artifacts/experiments/writingprompts_train
+  train_model_load_path: eleutherai/pythia-70m
+  train_model_save_path: artifacts/weights/ar/checkpoints
+  infer_data_load_path: artifacts/experiments/writingprompts_train
+  infer_data_save_path: artifacts/weights/ar/inference_outputs
+  infer_model_load_path: artifacts/weights/ar/checkpoints
+
+dataset:
+  num_train_samples: 10000
+  num_infer_samples: 10000
+
+training:
+  num_epochs: 4
+  batch_size: 64
+  logging_steps: 10
+  optim: adamw_torch_fused
+  bf16: true
+  use_liger_kernel: false
+  dataloader_num_workers: 4
+  dataloader_pin_memory: true
+  assistant_only_loss: true
+  report_to: tensorboard
+  push_to_hub: false
+  remove_unused_columns: false
+
+inference:
+  max_new_tokens: 512
+  num_beams: 1
+  do_sample: true
+  use_cache: true
+  temperature: 1.1
+  num_return_sequences: 1
+  batch_size: 10
+
+seed: 42

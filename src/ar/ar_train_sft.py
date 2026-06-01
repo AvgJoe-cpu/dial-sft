@@ -3,8 +3,7 @@
 # LM - prompt completion
 
 from src.ar.ar_load_model import setup_model_and_tokenizer
-from src.ar.ar_inference import run_inference
-from src.ar.ar_config_schema import TrainingConfig, InferenceConfig
+from src.ar.ar_config_schema import TrainingConfig
 
 import torch
 from trl import SFTConfig, SFTTrainer
@@ -62,54 +61,3 @@ def run_training(cfg: TrainingConfig) -> None:
     print(f"✓ Training complete. Model saved to: {cfg.TRAIN_MODEL_SAVE_PATH}")
     torch.cuda.empty_cache()
     del model, tokenizer, training_args, trainer, train_dataset
-
-
-if __name__ == "__main__":
-    import tempfile
-
-    with tempfile.TemporaryDirectory() as tmp:
-        TRAIN_OG_SAVE_PATH = f"{tmp}/train_ds_og"
-
-        CONFIG_DICT = {
-            "ROUND1": {
-                "TRAIN_DATA_LOAD_PATH": TRAIN_OG_SAVE_PATH,
-                "TRAIN_MODEL_LOAD_PATH": "EleutherAI/pythia-70m",
-                "TRAIN_MODEL_SAVE_PATH": f"{tmp}/sft_output",
-                "INFER_MODEL_LOAD_PATH": f"{tmp}/sft_output",
-                "INFER_DATA_LOAD_PATH": TRAIN_OG_SAVE_PATH,
-                "INFER_DATA_SAVE_PATH": f"{tmp}/local_arrow_dataset",
-            },
-        }
-
-        for round_name, config in CONFIG_DICT.items():
-            print(f"\n{'='*80}")
-            print(f"STARTING {round_name}")
-            print(f"{'='*80}\n")
-
-            print(f"Training data:        {config['TRAIN_DATA_LOAD_PATH']}")
-            print(f"Training model:       {config['TRAIN_MODEL_LOAD_PATH']}")
-            print(f"Will save model to:   {config['TRAIN_MODEL_SAVE_PATH']}")
-
-            # ── TRAINING ─────────────────────────────────────────────────────
-            print(f"[{round_name}] Running training...")
-            run_training(TrainingConfig(
-                TRAIN_DATA_LOAD_PATH=config["TRAIN_DATA_LOAD_PATH"],
-                TRAIN_MODEL_LOAD_PATH=config["TRAIN_MODEL_LOAD_PATH"],
-                TRAIN_MODEL_SAVE_PATH=config["TRAIN_MODEL_SAVE_PATH"],
-                num_samples=100,
-            ))
-            print(f"✓ [{round_name}] Training complete\n")
-
-            # ── INFERENCE ────────────────────────────────────────────────────
-            print(f"[{round_name}] Running inference...")
-            run_inference(InferenceConfig(
-                INFER_MODEL_LOAD_PATH=config["INFER_MODEL_LOAD_PATH"],
-                INFER_DATA_LOAD_PATH=config["INFER_DATA_LOAD_PATH"],
-                INFER_DATA_SAVE_PATH=config["INFER_DATA_SAVE_PATH"],
-                num_samples=100,
-            ))
-            print(f"✓ [{round_name}] Inference complete\n")
-
-            print(f"{'='*80}")
-            print(f"✓ {round_name} FINISHED")
-            print(f"{'='*80}\n")
