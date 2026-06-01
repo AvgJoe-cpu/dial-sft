@@ -11,8 +11,8 @@ register_configs()
 @hydra.main(config_path="../conf", config_name="config", version_base=None)
 def main(cfg: ExperimentConfig) -> None:
     """Convert Hydra config → TrainingConfig, then delegate to run_training."""
-    override_dirname = HydraConfig.get().job.override_dirname or "default"
-    resolved_paths = PathResolver().resolve_mdlm_paths(cfg.paths, override_dirname)
+    experiment_suffix = HydraConfig.get().job.override_dirname or "default"
+    resolved_paths = PathResolver().resolve_mdlm_paths(cfg.paths, experiment_suffix)
 
     training_cfg = TrainingConfig(
         # paths

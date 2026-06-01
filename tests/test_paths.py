@@ -73,7 +73,7 @@ def test_model_reference_resolution_preserves_external_refs_and_local_weights() 
 def test_resolve_mdlm_paths_builds_stage_specific_outputs() -> None:
     resolver = PathResolver(project_root=REPO_ROOT)
 
-    resolved = resolver.resolve_mdlm_paths(_MdlmPaths(), override_dirname="lr=1e-4")
+    resolved = resolver.resolve_mdlm_paths(_MdlmPaths(), experiment_suffix="lr=1e-4")
 
     assert resolved.train_data == REPO_ROOT / "artifacts" / "datasets" / "base" / "w_D0"
     assert resolved.model_save == (

@@ -178,8 +178,8 @@ if __name__ == "__main__":
     subsets = create_nested_subdatasets(train_ds, sizes)
     verify_nested(subsets, sizes)
 
-    for key, subset in subsets.items():
-        save_path = resolver.dataset_subset_path(ds_prefix, key)
-        print(f"Saving {key} ({len(subset)} rows) → {save_path}")
+    for subset_key, subset in subsets.items():
+        save_path = resolver.dataset_subset_path(ds_prefix, subset_key)
+        print(f"Saving {subset_key} ({len(subset)} rows) → {save_path}")
         save_path.parent.mkdir(parents=True, exist_ok=True)
         subset.save_to_disk(str(save_path))

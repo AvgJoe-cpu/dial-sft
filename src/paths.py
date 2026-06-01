@@ -93,7 +93,7 @@ class PathResolver:
         }
 
     def resolve_mdlm_paths(
-        self, paths: object, override_dirname: str
+        self, paths: object, experiment_suffix: str
     ) -> ResolvedMdlmPaths:
         return ResolvedMdlmPaths(
             train_data=self.resolve_dataset_path(getattr(paths, "train_data")),
@@ -101,10 +101,10 @@ class PathResolver:
             model_load=self.resolve_weights_path(getattr(paths, "model_load")),
             model_save=(
                 self.resolve_weights_path(getattr(paths, "model_save"))
-                / override_dirname
+                / experiment_suffix
             ),
             log_dir=self.resolve_runs_path(getattr(paths, "log_dir"))
-            / override_dirname,
+            / experiment_suffix,
         )
 
     def resolve_ar_paths(self, paths: object) -> ResolvedArPaths:

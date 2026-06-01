@@ -24,7 +24,7 @@ class InferenceConfig:
         DEFAULT_PATHS.resolve_dataset_path("writingprompts_test")
     )
     INFERENCE_SAVE_PATH: str = str(
-        DEFAULT_PATHS.datasets_root / "checkpoints/mdlm_generations"
+        DEFAULT_PATHS.resolve_weights_path("mdlm/inference_outputs")
     )
     INFERENCE_MODEL_PATH: str = str(DEFAULT_PATHS.resolve_weights_path("base"))
 
