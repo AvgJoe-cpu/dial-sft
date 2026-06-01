@@ -30,7 +30,7 @@ def setup_model_and_tokenizer(
     {%- endif %}
     """.strip()
 
-    resolver = PathResolver()
+    resolver = DEFAULT_PATHS
     resolved_model_name = resolver.resolve_model_reference(model_name)
 
     # ── tokenizer: load from cache or download & save ─────────────────────

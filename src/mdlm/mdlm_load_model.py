@@ -86,7 +86,7 @@ def load_model(
     # ]
 
     # 1. ---- download checkpoint artifacts ---------------------------------
-    resolver = PathResolver()
+    resolver = DEFAULT_PATHS
     resolved_local_dir = resolver.resolve_weights_path(local_dir)
     resolved_local_dir.mkdir(parents=True, exist_ok=True)
     files = resolver.mdlm_checkpoint_files(resolved_local_dir)

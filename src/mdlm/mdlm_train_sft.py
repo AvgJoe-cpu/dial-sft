@@ -1,5 +1,6 @@
 import gc
 from dataclasses import dataclass, field
+from functools import partial
 
 import torch
 from datasets import load_from_disk
@@ -69,7 +70,7 @@ def run_training(config: TrainingConfig = TrainingConfig()):
             ]
         }
 
-    def _sft_map_fn(example, max_length=config.max_length, tokenizer=tokenizer):
+    def _sft_map_fn(example, tokenizer, max_length):
         enc = tokenizer.apply_chat_template(
             example["messages"],
             tokenize=True,
@@ -88,18 +89,20 @@ def run_training(config: TrainingConfig = TrainingConfig()):
             "assistant_mask": assistant_mask,
         }
 
+    sft_map_fn = partial(_sft_map_fn, tokenizer=tokenizer, max_length=config.max_length)
+
     train_ds = load_from_disk(config.TRAIN_DATA_LOAD_PATH)
     if config.num_train_samples and config.num_train_samples > 0:
         train_ds = train_ds.select(range(min(config.num_train_samples, len(train_ds))))
 
-    train_ds = train_ds.map(format_to_messages).map(_sft_map_fn)
+    train_ds = train_ds.map(format_to_messages).map(sft_map_fn)
     train_ds = train_ds.select_columns(["input_ids", "labels", "assistant_mask"])
 
     test_ds = load_from_disk(config.TEST_DATA_LOAD_PATH)
     if config.num_test_samples and config.num_test_samples > 0:
         test_ds = test_ds.select(range(min(config.num_test_samples, len(test_ds))))
 
-    test_ds = test_ds.map(format_to_messages).map(_sft_map_fn)
+    test_ds = test_ds.map(format_to_messages).map(sft_map_fn)
     test_ds = test_ds.select_columns(["input_ids", "labels", "assistant_mask"])
 
     scheduler = make_alpha_scheduler(config.scheduler)
