@@ -3,9 +3,11 @@ import hashlib
 import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
-from datasets import load_dataset, load_from_disk
-from datasets import Dataset
+from datasets import Dataset, load_dataset, load_from_disk
+
+from src.paths import PathResolver
 
 
 @dataclass
@@ -14,12 +16,22 @@ class DatasetProcessingConfig:
     split_save_paths: dict[str, str]
 
 
+def _dataset_prefix(dataset_name: str) -> str:
+    dataset_match = re.search(r"/(\w+)$", dataset_name)
+    if dataset_match is None:
+        raise ValueError(f"Unsupported dataset name: {dataset_name}")
+    return "".join(re.findall(r"(?:^|_)([a-z])", dataset_match.group(1)))
+
+
 def _process_and_save_datasets(cfg: DatasetProcessingConfig, tokenizer):
-    ds_prefix = "".join(re.findall(r'(?:^|_)([a-z])', re.search(r'/(\w+)$', cfg.dataset_name).group(1)))
+    ds_prefix = _dataset_prefix(cfg.dataset_name)
 
     print(f"Loading dataset: {cfg.dataset_name}")
     dd = load_dataset(cfg.dataset_name)
-    splits = {split: (dd[split], cfg.split_save_paths[split]) for split in dd.keys() & cfg.split_save_paths.keys()}
+    splits = {
+        split: (dd[split], cfg.split_save_paths[split])
+        for split in dd.keys() & cfg.split_save_paths.keys()
+    }
     del dd
     gc.collect()
 
@@ -27,11 +39,17 @@ def _process_and_save_datasets(cfg: DatasetProcessingConfig, tokenizer):
         print(f"Processing {split_name} split...")
 
         def _add_id(batch, indices):
-            batch["id"] = [f"{ds_prefix}_{split_name}_{hashlib.sha256(str(idx).encode()).hexdigest()}" for idx in indices]
+            batch["id"] = [
+                f"{ds_prefix}_{split_name}_{hashlib.sha256(str(idx).encode()).hexdigest()}"
+                for idx in indices
+            ]
             return batch
+
         ds = ds.map(_add_id, batched=True, with_indices=True)
 
-        for old, new in zip((c for c in ds.column_names if c != "id"), ("prompt", "completion")):
+        for old, new in zip(
+            (c for c in ds.column_names if c != "id"), ("prompt", "completion")
+        ):
             if old != new:
                 ds = ds.rename_column(old, new)
 
@@ -39,19 +57,22 @@ def _process_and_save_datasets(cfg: DatasetProcessingConfig, tokenizer):
             ds = ds.map(
                 lambda batch, col=col: {
                     f"{col}_token_count": [
-                        len(ids) for ids in tokenizer(batch[col], truncation=False, padding=False)["input_ids"]
+                        len(ids)
+                        for ids in tokenizer(
+                            batch[col], truncation=False, padding=False
+                        )["input_ids"]
                     ]
                 },
                 batched=True,
             )
 
         print(f"Saving {split_name} split to: {save_path}")
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         ds.save_to_disk(save_path)
         del ds
         gc.collect()
 
     print("✓ All splits processed and saved!")
-
 
 
 def create_nested_subdatasets(
@@ -114,24 +135,26 @@ def verify_nested(subsets: dict[str, Dataset], sizes: list[int]) -> None:
     # 4. (stronger) prefix-equality: the first |D_i| rows of D_{i+1} == D_i
     for a, b in zip(keys[:-1], keys[1:]):
         n = len(subsets[a])
-        assert subsets[a]["id"] == subsets[b]["id"][:n], (
-            f"{a} is not a row-order prefix of {b}"
-        )
+        assert (
+            subsets[a]["id"] == subsets[b]["id"][:n]
+        ), f"{a} is not a row-order prefix of {b}"
 
     print("✓ all checks passed:", {k: len(subsets[k]) for k in keys})
 
+
 if __name__ == "__main__":
-    import os
+    resolver = PathResolver()
     cfg = DatasetProcessingConfig(
         dataset_name="euclaise/writingprompts",
         split_save_paths={
-            "train":      "./artifacts/datasets/base/writingprompts_train",
-            "validation": "./artifacts/datasets/base/writingprompts_eval",
-            "test":       "./artifacts/datasets/base/writingprompts_test",
+            "train": str(resolver.resolve_dataset_path("writingprompts_train")),
+            "validation": str(resolver.resolve_dataset_path("writingprompts_eval")),
+            "test": str(resolver.resolve_dataset_path("writingprompts_test")),
         },
     )
 
     from src.ar.ar_train_sft import setup_model_and_tokenizer
+
     _, tokenizer = setup_model_and_tokenizer(model_name="EleutherAI/pythia-70m")
 
     if all(os.path.exists(p) for p in cfg.split_save_paths.values()):
@@ -143,18 +166,20 @@ if __name__ == "__main__":
     print(ds)
     print(ds.column_names)
 
-    ds_prefix = "".join(re.findall(r'(?:^|_)([a-z])', re.search(r'/(\w+)$', cfg.dataset_name).group(1)))
+    ds_prefix = _dataset_prefix(cfg.dataset_name)
 
     train_ds = load_from_disk(cfg.split_save_paths["train"])
 
-    size_pcts = [0.25, 0.5, 1.0]   # D0 ⊂ D1 ⊂ D2
+    size_pcts = [0.25, 0.5, 1.0]  # D0 ⊂ D1 ⊂ D2
     sizes = sorted(set(max(1, round(p * len(train_ds))) for p in size_pcts))
-    print(f"Creating nested subsets with sizes: {sizes} ({[f'{p*100:.1f}%' for p in size_pcts]})")
+    subset_percents = [f"{p * 100:.1f}%" for p in size_pcts]
+    print(f"Creating nested subsets with sizes: {sizes} ({subset_percents})")
 
     subsets = create_nested_subdatasets(train_ds, sizes)
     verify_nested(subsets, sizes)
 
-    for key, subset in subsets.items():
-        save_path = f"./datasets/base/{ds_prefix}_{key}"
-        print(f"Saving {key} ({len(subset)} rows) → {save_path}")
-        subset.save_to_disk(save_path)
+    for subset_key, subset in subsets.items():
+        save_path = resolver.dataset_subset_path(ds_prefix, subset_key)
+        print(f"Saving {subset_key} ({len(subset)} rows) → {save_path}")
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        subset.save_to_disk(str(save_path))

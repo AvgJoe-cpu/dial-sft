@@ -4,7 +4,7 @@ stage_name: "stage2"
 dataset:
   stage: 2
 paths:
-  train_data: "./artifacts/datasets/base/w_D2"
+  train_data: "w_D2"
 training:
   num_epochs: 1
 eval:

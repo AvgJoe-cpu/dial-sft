@@ -1,10 +1,13 @@
 import math
-import os
-from xml.parsers.expat import model
+from pathlib import Path
 
 import torch
 from huggingface_hub import download_bucket_files
 from transformers import AutoModelForMaskedLM, AutoTokenizer
+
+from src.paths import PathResolver
+
+DEFAULT_PATHS = PathResolver()
 
 
 def resize_mdlm_vocab(model, new_vocab: int) -> None:
@@ -44,7 +47,7 @@ def resize_mdlm_vocab(model, new_vocab: int) -> None:
 
 def load_model(
     bucket: str = "avgJo3/mdlm-owt-bucket",
-    local_dir: str = "./artifacts/weights",
+    local_dir: str | Path = DEFAULT_PATHS.resolve_weights_path("base"),
     tokenizer_name: str = "gpt2",
     verbose: bool = True,
 ):
@@ -83,14 +86,14 @@ def load_model(
     # ]
 
     # 1. ---- download checkpoint artifacts ---------------------------------
-    files = [
-        ("model.safetensors", f"{local_dir}/model.safetensors"),
-        ("modeling_mdlm.py", f"{local_dir}/modeling_mdlm.py"),
-        ("config.json", f"{local_dir}/config.json"),
-        ("configuration_mdlm.py", f"{local_dir}/configuration_mdlm.py"),
-    ]
+    resolver = DEFAULT_PATHS
+    resolved_local_dir = resolver.resolve_weights_path(local_dir)
+    resolved_local_dir.mkdir(parents=True, exist_ok=True)
+    files = resolver.mdlm_checkpoint_files(resolved_local_dir)
 
-    missing = [(src, dst) for src, dst in files if not os.path.exists(dst)]
+    missing = [
+        (filename, str(path)) for filename, path in files.items() if not path.exists()
+    ]
     if missing:
         if verbose:
             print(f"Downloading {len(missing)} missing file(s)...")
@@ -100,7 +103,7 @@ def load_model(
 
     # 2. ---- load model ----------------------------------------------------
     model = AutoModelForMaskedLM.from_pretrained(
-        local_dir,  # or absolute path
+        str(resolved_local_dir),  # or absolute path
         trust_remote_code=True,
     )
     print(next(model.parameters()).dtype)
@@ -110,23 +113,34 @@ def load_model(
         # MPS supports bfloat16 on M-series chips
         model = model.to(torch.bfloat16)
     else:
-        print("bfloat16 not supported, keeping float32")    
+        print("bfloat16 not supported, keeping float32")
     # 3. ---- tokenizer: base -> template -> specials -> pad ----------------
-    tokenizer_cache_dir = os.path.join(local_dir, "tokenizer")
-    if os.path.isdir(tokenizer_cache_dir):
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache_dir)
+    tokenizer_cache_dir = resolver.tokenizer_cache_dir(resolved_local_dir)
+    if tokenizer_cache_dir.is_dir():
+        tokenizer = AutoTokenizer.from_pretrained(str(tokenizer_cache_dir))
     else:
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-        tokenizer.save_pretrained(tokenizer_cache_dir)
+        tokenizer_cache_dir.mkdir(parents=True, exist_ok=True)
+        tokenizer.save_pretrained(str(tokenizer_cache_dir))
 
     if verbose:
         print(f"[tok] base tokenizer      : {tokenizer_name}")
         print(f"[tok] base vocab size     : {len(tokenizer)}")
-        print(f"[tok] bos_token           : {tokenizer.bos_token!r}  (id {tokenizer.bos_token_id})")
-        print(f"[tok] eos_token           : {tokenizer.eos_token!r}  (id {tokenizer.eos_token_id})")
-        print(f"[tok] unk_token           : {tokenizer.unk_token!r}  (id {tokenizer.unk_token_id})")
-        print(f"[tok] pad_token (before)  : {tokenizer.pad_token!r}  (id {tokenizer.pad_token_id})")
-        print(f"[tok] mask_token (before) : {tokenizer.mask_token!r}  (id {tokenizer.mask_token_id})")
+        print(
+            f"[tok] bos_token           : {tokenizer.bos_token!r}  (id {tokenizer.bos_token_id})"
+        )
+        print(
+            f"[tok] eos_token           : {tokenizer.eos_token!r}  (id {tokenizer.eos_token_id})"
+        )
+        print(
+            f"[tok] unk_token           : {tokenizer.unk_token!r}  (id {tokenizer.unk_token_id})"
+        )
+        print(
+            f"[tok] pad_token (before)  : {tokenizer.pad_token!r}  (id {tokenizer.pad_token_id})"
+        )
+        print(
+            f"[tok] mask_token (before) : {tokenizer.mask_token!r}  (id {tokenizer.mask_token_id})"
+        )
         base_special = tokenizer.all_special_tokens
         print(f"[tok] special tokens ({len(base_special)}) : {base_special}")
 
@@ -148,8 +162,12 @@ def load_model(
 
     if verbose:
         print(f"[tok] vocab size after adding specials: {len(tokenizer)}")
-        print(f"[tok] mask_token (after)  : {tokenizer.mask_token!r}  (id {tokenizer.mask_token_id})")
-        print(f"[tok] pad_token  (after)  : {tokenizer.pad_token!r}  (id {tokenizer.pad_token_id})")
+        print(
+            f"[tok] mask_token (after)  : {tokenizer.mask_token!r}  (id {tokenizer.mask_token_id})"
+        )
+        print(
+            f"[tok] pad_token  (after)  : {tokenizer.pad_token!r}  (id {tokenizer.pad_token_id})"
+        )
         all_special = tokenizer.all_special_tokens
         print(f"[tok] all special tokens ({len(all_special)}):")
         for tok in all_special:

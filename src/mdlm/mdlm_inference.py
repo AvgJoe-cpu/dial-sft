@@ -3,22 +3,30 @@ import gc
 from dataclasses import dataclass
 
 import torch
-
 from datasets import load_from_disk
+
+from src.mdlm.mdlm_helpers.mdlm_sampler_sft import (
+    MDLMSamplerConfig,
+    MinimalMDLMSampler,
+    SFTMixinBatchedVarlen,
+)
+from src.mdlm.mdlm_helpers.mdlm_scheduler import LinearAlphaScheduler
 from src.mdlm.mdlm_load_model import load_model
-from src.mdlm.mdlm_helpers.mdlm_sampler_sft import (MDLMSamplerConfig,
-                                                    MinimalMDLMSampler,
-                                                    SFTMixinBatchedVarlen)
-from src.mdlm.mdlm_helpers.mdlm_scheduler import (BaseAlphaScheduler,
-                                                  LinearAlphaScheduler)
+from src.paths import PathResolver
+
+DEFAULT_PATHS = PathResolver()
 
 
 @dataclass
 class InferenceConfig:
     # --- data & model paths ---
-    INFERENCE_LOAD_PATH: str = "./artifacts/datasets/base/writingprompts_test"
-    INFERENCE_SAVE_PATH: str = "./artifacts/datasets/checkpoints/mdlm_generations"
-    INFERENCE_MODEL_PATH: str = "./artifacts/weights/base"
+    INFERENCE_LOAD_PATH: str = str(
+        DEFAULT_PATHS.resolve_dataset_path("writingprompts_test")
+    )
+    INFERENCE_SAVE_PATH: str = str(
+        DEFAULT_PATHS.resolve_weights_path("mdlm/inference_outputs")
+    )
+    INFERENCE_MODEL_PATH: str = str(DEFAULT_PATHS.resolve_weights_path("base"))
 
     # --- dataset ---
     num_samples: int = 10
@@ -117,5 +125,3 @@ def run_inference_mdlm(config: InferenceConfig = InferenceConfig()):
     gc.collect()
     if torch.device.type == "cuda":
         torch.cuda.empty_cache()
-
-

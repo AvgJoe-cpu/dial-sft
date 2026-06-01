@@ -1,13 +1,10 @@
-# (https://huggingface.co/docs/trl/sft_trainer$0)
-# standard - conversational
-# LM - prompt completion
-
-from src.ar.ar_load_model import setup_model_and_tokenizer
-from src.ar.ar_config_schema import TrainingConfig
-
 import torch
-from trl import SFTConfig, SFTTrainer
 from datasets import load_from_disk
+from trl import SFTConfig, SFTTrainer
+
+from src.ar.ar_config_schema import TrainingConfig
+from src.ar.ar_load_model import setup_model_and_tokenizer
+from src.paths import PathResolver
 
 
 def format_to_messages(example):
@@ -20,10 +17,13 @@ def format_to_messages(example):
 
 
 def run_training(cfg: TrainingConfig) -> None:
+    resolver = PathResolver()
     train_ds = load_from_disk(cfg.train_data_load_path)
 
     print(f"Selecting {cfg.num_samples} samples and preprocessing...")
-    train_ds = train_ds.select(range(cfg.num_samples)).rename_column("story", "completion")
+    train_ds = train_ds.select(range(cfg.num_samples)).rename_column(
+        "story", "completion"
+    )
     train_dataset = train_ds.map(format_to_messages)
 
     print(f"Loading model: {cfg.train_model_load_path}")
@@ -35,7 +35,7 @@ def run_training(cfg: TrainingConfig) -> None:
         push_to_hub=cfg.push_to_hub,
         output_dir=cfg.train_model_save_path,
         report_to=cfg.report_to,
-        logging_dir=f"{cfg.train_model_save_path}/tb_logs",
+        logging_dir=str(resolver.tensorboard_log_dir(cfg.train_model_save_path)),
         bf16=cfg.bf16,
         optim=cfg.optim,
         use_liger_kernel=cfg.use_liger_kernel,

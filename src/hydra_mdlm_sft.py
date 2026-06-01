@@ -3,6 +3,7 @@ from hydra.core.hydra_config import HydraConfig
 
 from src.config_schema import ExperimentConfig, register_configs
 from src.mdlm.mdlm_train_sft import TrainingConfig, run_training
+from src.paths import PathResolver
 
 register_configs()
 
@@ -10,14 +11,15 @@ register_configs()
 @hydra.main(config_path="../conf", config_name="config", version_base=None)
 def main(cfg: ExperimentConfig) -> None:
     """Convert Hydra config → TrainingConfig, then delegate to run_training."""
-    override_dirname = HydraConfig.get().job.override_dirname or "default"
+    experiment_suffix = HydraConfig.get().job.override_dirname or "default"
+    resolved_paths = PathResolver().resolve_mdlm_paths(cfg.paths, experiment_suffix)
 
     training_cfg = TrainingConfig(
         # paths
-        TRAIN_DATA_LOAD_PATH=cfg.paths.train_data,
-        TEST_DATA_LOAD_PATH=cfg.paths.test_data,
-        TRAIN_MODEL_LOAD_PATH=cfg.paths.model_load,
-        TRAIN_MODEL_SAVE_PATH=f"{cfg.paths.model_save}/{override_dirname}",
+        TRAIN_DATA_LOAD_PATH=str(resolved_paths.train_data),
+        TEST_DATA_LOAD_PATH=str(resolved_paths.test_data),
+        TRAIN_MODEL_LOAD_PATH=str(resolved_paths.model_load),
+        TRAIN_MODEL_SAVE_PATH=str(resolved_paths.model_save),
         # dataset
         num_train_samples=cfg.dataset.get("num_train_samples", -1),
         num_test_samples=cfg.dataset.get("num_test_samples", -1),
