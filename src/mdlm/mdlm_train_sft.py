@@ -2,23 +2,32 @@ import gc
 from dataclasses import dataclass, field
 
 import torch
-
 from datasets import load_from_disk
+
+from src.mdlm.mdlm_helpers.mdlm_scheduler import make_alpha_scheduler
+from src.mdlm.mdlm_helpers.mdlm_trainer_sft import (
+    MDLMConfig,
+    MDLMSFTTrainer,
+    NLLPPLMetricComputer,
+    SFTCollator,
+)
 from src.mdlm.mdlm_load_model import load_model
-from src.mdlm.mdlm_helpers.mdlm_scheduler import (BaseAlphaScheduler,
-                                                  LinearAlphaScheduler, make_alpha_scheduler)
-from src.mdlm.mdlm_helpers.mdlm_trainer_sft import (MDLMConfig, MDLMSFTTrainer,
-                                                    NLLPPLMetricComputer,
-                                                    SFTCollator)
+from src.paths import PathResolver
+
+DEFAULT_PATHS = PathResolver()
 
 
 @dataclass
 class TrainingConfig:
     # --- data & model paths ---
-    TRAIN_DATA_LOAD_PATH: str = "./artifacts/datasets/base/writingprompts_train"
-    TEST_DATA_LOAD_PATH: str = "./artifacts/datasets/base/writingprompts_test"
-    TRAIN_MODEL_LOAD_PATH: str = "./artifacts/weights/base"
-    TRAIN_MODEL_SAVE_PATH: str = "./artifacts/weights/checkpoints"
+    TRAIN_DATA_LOAD_PATH: str = str(
+        DEFAULT_PATHS.resolve_dataset_path("writingprompts_train")
+    )
+    TEST_DATA_LOAD_PATH: str = str(
+        DEFAULT_PATHS.resolve_dataset_path("writingprompts_test")
+    )
+    TRAIN_MODEL_LOAD_PATH: str = str(DEFAULT_PATHS.resolve_weights_path("base"))
+    TRAIN_MODEL_SAVE_PATH: str = str(DEFAULT_PATHS.resolve_weights_path("checkpoints"))
 
     # --- dataset ---
     num_train_samples: int = 1000
@@ -38,8 +47,8 @@ class TrainingConfig:
     seed: int = 42
     adam_beta1: float = 0.9
     adam_beta2: float = 0.999
-    scheduler: str = "linear"            # "linear" | "cosine"  -> alpha(t) family
-    loss_weight_type: str = "uniform"    # "uniform" | "scheduler"
+    scheduler: str = "linear"  # "linear" | "cosine"  -> alpha(t) family
+    loss_weight_type: str = "uniform"  # "uniform" | "scheduler"
     time_epsilon: float = 0.001
 
     # --- reporting & checkpointing ---
@@ -48,7 +57,10 @@ class TrainingConfig:
     save_strategy: str = "no"
     report_to: list = field(default_factory=lambda: ["tensorboard"])
 
+
 def run_training(config: TrainingConfig = TrainingConfig()):
+    model, tokenizer = load_model(local_dir=config.TRAIN_MODEL_LOAD_PATH)
+
     def format_to_messages(example):
         return {
             "messages": [
@@ -57,7 +69,7 @@ def run_training(config: TrainingConfig = TrainingConfig()):
             ]
         }
 
-    def _sft_map_fn(example, max_length=config.max_length):
+    def _sft_map_fn(example, max_length=config.max_length, tokenizer=tokenizer):
         enc = tokenizer.apply_chat_template(
             example["messages"],
             tokenize=True,
@@ -75,8 +87,6 @@ def run_training(config: TrainingConfig = TrainingConfig()):
             "labels": labels,
             "assistant_mask": assistant_mask,
         }
-
-    model, tokenizer = load_model(local_dir=config.TRAIN_MODEL_LOAD_PATH)
 
     train_ds = load_from_disk(config.TRAIN_DATA_LOAD_PATH)
     if config.num_train_samples and config.num_train_samples > 0:
@@ -135,7 +145,7 @@ def run_training(config: TrainingConfig = TrainingConfig()):
     )
 
     trainer.train()
-    #trainer.save_model()
+    # trainer.save_model()
     del trainer, args, collator, scheduler, train_ds, test_ds, model, tokenizer
 
     if torch.cuda.is_available():

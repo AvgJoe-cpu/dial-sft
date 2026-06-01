@@ -2,12 +2,12 @@ defaults:
   - _self_
 
 paths:
-  train_data_load_path: artifacts/experiments/writingprompts_train
+  train_data_load_path: writingprompts_train
   train_model_load_path: eleutherai/pythia-70m
-  train_model_save_path: artifacts/weights/ar/checkpoints
-  infer_data_load_path: artifacts/experiments/writingprompts_train
-  infer_data_save_path: artifacts/weights/ar/inference_outputs
-  infer_model_load_path: artifacts/weights/ar/checkpoints
+  train_model_save_path: ar/checkpoints
+  infer_data_load_path: writingprompts_train
+  infer_data_save_path: ar/inference_outputs
+  infer_model_load_path: ar/checkpoints
 
 dataset:
   num_train_samples: 10000

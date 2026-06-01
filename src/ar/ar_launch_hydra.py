@@ -1,27 +1,29 @@
 import hydra
-from omegaconf import DictConfig
 
 from src.ar.ar_config_schema import (
     ExperimentConfig,
-    TrainingConfig,
     InferenceConfig,
+    TrainingConfig,
     register_configs,
 )
-from src.ar.ar_train_sft import run_training
 from src.ar.ar_inference import run_inference
+from src.ar.ar_train_sft import run_training
+from src.paths import PathResolver
 
 register_configs()
 
 
 @hydra.main(config_path="../../conf", config_name="ar_config", version_base=None)
-def main(cfg: DictConfig) -> None:
+def main(cfg: ExperimentConfig) -> None:
+    resolved_paths = PathResolver().resolve_ar_paths(cfg.paths)
+
     # ── TRAINING ─────────────────────────────────────────────────────────────
     print("[AR-SFT] Running training...")
     run_training(
         TrainingConfig(
-            train_data_load_path=cfg.paths.train_data_load_path,
-            train_model_load_path=cfg.paths.train_model_load_path,
-            train_model_save_path=cfg.paths.train_model_save_path,
+            train_data_load_path=str(resolved_paths.train_data_load_path),
+            train_model_load_path=resolved_paths.train_model_load_path,
+            train_model_save_path=str(resolved_paths.train_model_save_path),
             num_samples=cfg.dataset.num_train_samples,
             num_epochs=cfg.training.num_epochs,
             batch_size=cfg.training.batch_size,
@@ -43,9 +45,9 @@ def main(cfg: DictConfig) -> None:
     print("[AR-SFT] Running inference...")
     run_inference(
         InferenceConfig(
-            infer_data_load_path=cfg.paths.infer_data_load_path,
-            infer_data_save_path=cfg.paths.infer_data_save_path,
-            infer_model_load_path=cfg.paths.infer_model_load_path,
+            infer_data_load_path=str(resolved_paths.infer_data_load_path),
+            infer_data_save_path=str(resolved_paths.infer_data_save_path),
+            infer_model_load_path=resolved_paths.infer_model_load_path,
             num_samples=cfg.dataset.num_infer_samples,
             max_new_tokens=cfg.inference.max_new_tokens,
             num_beams=cfg.inference.num_beams,

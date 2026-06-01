@@ -7,10 +7,10 @@ seed: 42
 
 paths:
   # stage-specific train path is set in conf/stage/*.yaml
-  test_data:  "./artifacts/datasets/base/writingprompts_eval" # HPO test set: real test has _test suffix, but we want to use the same eval set for all stages
-  model_load: "./artifacts/weights/base"
-  model_save: "./artifacts/weights/checkpoints/${stage_name}"
-  log_dir:    "./artifacts/runs/pilot/${stage_name}"
+  test_data:  "writingprompts_eval" # HPO test set: real test has _test suffix, but we want to use the same eval set for all stages
+  model_load: "base"
+  model_save: "checkpoints/${stage_name}"
+  log_dir:    "pilot/${stage_name}"
 
 dataset:
   num_workers:      4

@@ -1,6 +1,11 @@
-import os
+from pathlib import Path
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from src.paths import PathResolver
+
+DEFAULT_PATHS = PathResolver()
 
 
 def setup_model_and_tokenizer(
@@ -8,7 +13,7 @@ def setup_model_and_tokenizer(
     for_training: bool = True,
     dtype: torch.dtype = torch.bfloat16,
     device_map: str = "auto",
-    local_dir: str = "./artifacts/ar_weights",
+    local_dir: str | Path = DEFAULT_PATHS.resolve_weights_path("ar"),
 ):
     chat_template_str = """
     {%- for message in messages %}
@@ -25,12 +30,15 @@ def setup_model_and_tokenizer(
     {%- endif %}
     """.strip()
 
+    resolver = PathResolver()
+    resolved_model_name = resolver.resolve_model_reference(model_name)
+
     # ── tokenizer: load from cache or download & save ─────────────────────
-    tokenizer_cache_dir = os.path.join(local_dir, "tokenizer")
-    if os.path.isdir(tokenizer_cache_dir):
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache_dir)
+    tokenizer_cache_dir = resolver.tokenizer_cache_dir(local_dir)
+    if tokenizer_cache_dir.is_dir():
+        tokenizer = AutoTokenizer.from_pretrained(str(tokenizer_cache_dir))
     else:
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(resolved_model_name)
         tokenizer.chat_template = chat_template_str
         tokenizer.add_special_tokens(
             {
@@ -45,14 +53,14 @@ def setup_model_and_tokenizer(
         )
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
-        os.makedirs(tokenizer_cache_dir, exist_ok=True)
-        tokenizer.save_pretrained(tokenizer_cache_dir)
+        tokenizer_cache_dir.mkdir(parents=True, exist_ok=True)
+        tokenizer.save_pretrained(str(tokenizer_cache_dir))
 
     tokenizer.padding_side = "right" if for_training else "left"
 
     # ── model ─────────────────────────────────────────────────────────────
     model = AutoModelForCausalLM.from_pretrained(
-        model_name, dtype=dtype, device_map=device_map
+        resolved_model_name, dtype=dtype, device_map=device_map
     )
     model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=64)
 
