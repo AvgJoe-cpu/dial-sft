@@ -2,12 +2,40 @@
 # standard - conversational
 # LM - prompt completion
 
+from dataclasses import dataclass, field
+
 from src.ar.ar_load_model import setup_model_and_tokenizer
-from src.ar.ar_config_schema import TrainingConfig
 
 import torch
 from trl import SFTConfig, SFTTrainer
 from datasets import load_from_disk
+
+
+@dataclass
+class TrainingConfig:
+    # paths
+    TRAIN_DATA_LOAD_PATH: str = ""
+    TRAIN_MODEL_LOAD_PATH: str = ""
+    TRAIN_MODEL_SAVE_PATH: str = ""
+    # dataset
+    num_samples: int = 10000
+    # training
+    num_epochs: int = 4
+    batch_size: int = 64
+    logging_steps: int = 10
+    # optimizer
+    optim: str = "adamw_torch_fused"
+    # precision / hardware
+    bf16: bool = True
+    use_liger_kernel: bool = False
+    dataloader_num_workers: int = 4
+    dataloader_pin_memory: bool = True
+    # loss
+    assistant_only_loss: bool = True
+    # misc
+    report_to: str = "tensorboard"
+    push_to_hub: bool = False
+    remove_unused_columns: bool = False
 
 
 def format_to_messages(example):

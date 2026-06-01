@@ -1,9 +1,28 @@
+from dataclasses import dataclass, field
+
 from src.ar.ar_load_model import setup_model_and_tokenizer
-from src.ar.ar_config_schema import InferenceConfig
 
 import torch
 from transformers import GenerationConfig
 from datasets import load_from_disk
+
+
+@dataclass
+class InferenceConfig:
+    # paths
+    INFER_MODEL_LOAD_PATH: str = ""
+    INFER_DATA_LOAD_PATH: str = ""
+    INFER_DATA_SAVE_PATH: str = ""
+    # dataset
+    num_samples: int = 10000
+    # generation
+    max_new_tokens: int = 512
+    num_beams: int = 1
+    do_sample: bool = True
+    use_cache: bool = True
+    temperature: float = 1.1
+    num_return_sequences: int = 1
+    batch_size: int = 10
 
 
 def generate_ar(batch, tokenizer=None, model=None, gen_config=None):
