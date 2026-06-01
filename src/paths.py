@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import Protocol
 
 PROJECT_ROOT_ENV_VAR = "DIAL_SFT_PROJECT_ROOT"
 
@@ -33,6 +34,23 @@ class ResolvedArPaths:
     infer_data_load_path: Path
     infer_model_load_path: str
     infer_data_save_path: Path
+
+
+class MdlmPathsConfig(Protocol):
+    train_data: str
+    test_data: str
+    model_load: str
+    model_save: str
+    log_dir: str
+
+
+class ArPathsConfig(Protocol):
+    train_data_load_path: str
+    train_model_load_path: str
+    train_model_save_path: str
+    infer_data_load_path: str
+    infer_model_load_path: str
+    infer_data_save_path: str
 
 
 class PathResolver:
@@ -93,40 +111,30 @@ class PathResolver:
         }
 
     def resolve_mdlm_paths(
-        self, paths: object, experiment_suffix: str
+        self, paths: MdlmPathsConfig, experiment_suffix: str
     ) -> ResolvedMdlmPaths:
         return ResolvedMdlmPaths(
-            train_data=self.resolve_dataset_path(getattr(paths, "train_data")),
-            test_data=self.resolve_dataset_path(getattr(paths, "test_data")),
-            model_load=self.resolve_weights_path(getattr(paths, "model_load")),
-            model_save=(
-                self.resolve_weights_path(getattr(paths, "model_save"))
-                / experiment_suffix
-            ),
-            log_dir=self.resolve_runs_path(getattr(paths, "log_dir"))
-            / experiment_suffix,
+            train_data=self.resolve_dataset_path(paths.train_data),
+            test_data=self.resolve_dataset_path(paths.test_data),
+            model_load=self.resolve_weights_path(paths.model_load),
+            model_save=self.resolve_weights_path(paths.model_save) / experiment_suffix,
+            log_dir=self.resolve_runs_path(paths.log_dir) / experiment_suffix,
         )
 
-    def resolve_ar_paths(self, paths: object) -> ResolvedArPaths:
+    def resolve_ar_paths(self, paths: ArPathsConfig) -> ResolvedArPaths:
         return ResolvedArPaths(
-            train_data_load_path=self.resolve_dataset_path(
-                getattr(paths, "train_data_load_path")
-            ),
+            train_data_load_path=self.resolve_dataset_path(paths.train_data_load_path),
             train_model_load_path=self.resolve_model_reference(
-                getattr(paths, "train_model_load_path")
+                paths.train_model_load_path
             ),
             train_model_save_path=self.resolve_weights_path(
-                getattr(paths, "train_model_save_path")
+                paths.train_model_save_path
             ),
-            infer_data_load_path=self.resolve_dataset_path(
-                getattr(paths, "infer_data_load_path")
-            ),
+            infer_data_load_path=self.resolve_dataset_path(paths.infer_data_load_path),
             infer_model_load_path=self.resolve_model_reference(
-                getattr(paths, "infer_model_load_path")
+                paths.infer_model_load_path
             ),
-            infer_data_save_path=self.resolve_weights_path(
-                getattr(paths, "infer_data_save_path")
-            ),
+            infer_data_save_path=self.resolve_weights_path(paths.infer_data_save_path),
         )
 
     def is_external_model_ref(self, value: str | Path) -> bool:
